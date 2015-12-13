@@ -1,0 +1,286 @@
+))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+================================================================================
+FZPL Programming Reference
+================================================================================
+Base Sentence Types
+--------------------------------------------------------------------------------
+Informal:
+	These currently serve no specialized roles, and will likely play a
+	greater role during the statistical inference of sentence structures.
+
+	>	Greeting
+		(> `hello)
+
+	<	Farewell
+		(< `goodbye)
+
+	:|	General
+		(:| `so...)
+
+	!	Interjection
+		(! `i'd just like to interject for a moment...)
+
+Logical:
+	i	Informative
+		(i _ `x .is "y ,.)
+
+	?	Question
+		(? _ .is `x "y ,?)
+Special:
+	c	Command
+		(c test 000)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Natural Language Input
+--------------------------------------------------------------------------------
+Indicated by the absence of "(" as the first non-whitespace character on a line
+that does not fall within a sentence block.
+
+The entire line will be treated as a sentence block.
+
+	hello world !
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Block Types
+--------------------------------------------------------------------------------
+Logical:
+	_	IS-A relationship.  Action terminals are disregarded.
+
+		(i (_ `x .is "y))
+
+	^	HAS-A relationship.  Action terminals are disregarded.
+
+		(i (^ "y .is a subset of `x))
+
+	*	DOES-A relationship.  Action terminals are considered.
+
+		(i (* `x .affects "y))
+
+	{	The current block is implied by ...
+		(i
+		  (_ `x .is "y
+		    ({ ,if
+		      (_ `y .is "z)
+		    )
+		  )
+		)
+
+	}	The current block implies ...
+
+Miscellaneous:
+	+	And
+	/	Or -- Not technically operational
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Terminal Types
+--------------------------------------------------------------------------------
+General Purpose:
+
+	`	Subj-1	In "x kicked y", refers to "x".
+	.	Action	In "x kicked y", refers to "kicked".
+	"	Subj-2	In "x kicked y", refers to "y".
+	,	Term	No use in logic, but highly useful for NLP.
+	;	Skip	Tells the system not to reply after your current input.
+
+Logical:
+
+	=	True
+	-	False
+	~	Maybe
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Blocks and Nested Blocks
+--------------------------------------------------------------------------------
+Everything is contained within parentheses, and deeper concepts may be
+contained within nested parentheses.
+
+(i (* (` %3|i)
+      (. $#0|like)
+      (" $#1|pie)
+      (, .)))
+
+(i (* (` %3|i)
+      (- do not)
+      (. @#0|like)
+      (, the fact that)
+      (_
+        (` %0|you)
+        (- do not)
+        (. @#0|like)
+        (" @#1|pie))
+      (, .)))
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Comments
+--------------------------------------------------------------------------------
+Comment blocks may be created with "[*" and terminated with "*]".
+
+	[*
+	(` foo)
+	*]
+
+Comment lines may be created with "//", and are terminated at the end of lines.
+
+	// (` bar)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Escape Characters
+--------------------------------------------------------------------------------
+Indicated with a preceding "\".
+
+For instance,
+
+	"\[*"
+
+may be used to prevent a comment block from being created within a terminal.
+
+	(> (` \[* This is not a comment *])
+	   (` [* This is a comment *] ...)
+	)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Special Addresses
+--------------------------------------------------------------------------------
+ID	Term	Description
+
+0	_OTHER	Refers to the relative "other" individual for an exchange.
+1	_USR	Refers explicitly to the user interacting with the system.
+2	_SYS	Refers explicitly to the system.
+3	_SELF	Refers to the relative "self" individual for an exchange.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Reference Types
+--------------------------------------------------------------------------------
+Stack:
+	%	Indirect
+	#	Direct
+
+	(:| `%0|You .are .#0|Fadela ,.)
+Heap:
+	$%	Indirect, Reference to new
+	$#	Direct, Reference to new
+
+		(i _ `$#0|sam .is "$#2|rude ,.)
+
+	Notice: The following must be declared (see above) before use.
+
+	@%	Indirect, Reference to existing
+	@#	Direct, Reference to existing
+
+		(? _ .is `@#0|sam "@#2|rude ,?)
+
+Miscellaneous:
+	&	Ambiguous.  Not completely stable.
+
+		(i _ `$#0|sam .is "$#2|rude ,.)
+		(? _ `$&1|who .is "@#2|rude ,?)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Shorthand
+--------------------------------------------------------------------------------
+Plus:
+
+	(f0 (f1 ...) +and1 (f2 ...) +and2 (f3 ...))
+
+	Yields
+
+	(f0 (+ (f1 ...) ,and1 (f2 ...) ,and2 (f3 ...) ) )
+
+	For most non-terminal blocks f0 and most non-base blocks f1.
+--------------------------------------------------------------------------------
+Is/Has/Does:
+
+	(i _ (` x) (" y) )
+
+	Yields
+
+	(i (_ (` x) (" y) ) )
+--------------------------------------------------------------------------------
+Terminals:
+
+	(f0 `x .y "z)
+
+	Yields
+
+	(f0 (` x) (. y) (" z) )
+
+	For any terminal type in whatever blocks terminals are accepted.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sentiment:
+--------------------------------------------------------------------------------
+	e	Sentiment state -- experimental.
+
+		Usually goes in the base block, with the following grammar:
+
+			block -> (e [dimension] [reference]|[terminal])
+
+			dimensions -> [category][info]
+
+			category ->	L
+					(Love/Hate)
+
+					P
+					(Reward/Punishment)
+
+					D
+					(Interest/Boredom)
+
+					A
+					(seq/nseq)
+
+			info ->
+					'+
+					(Anticipated increase)
+
+					'-
+					(Anticipated decrease)
+
+					+'
+					(Past increase)
+
+					-'
+					(Past decrease)
+
+					(Empty -- current state)
+
+			terminal -> [ref][addr]|[term]
+
+			ref ->		#
+					("Infliction")
+
+					%
+					(Indication)
+
+			addr -> Any valid stack address.
+				(Heap not currently supported.)
+
+			term -> Terminal string.
+
+		So basically, the statement
+
+			(> `foo (e D+' %0|bar) )
+
+		conveys a past increase in interest by the 'other' agent.
+
+		The syntax for representing sentiment states is quite verbose,
+		so hardcoded shortcuts for ones frequently used during
+		verification may be called with cues like the following:
+
+			:reward|term
+			(Reward stimuli)
+
+			:punish|term
+			(Punishment stimuli)
+
+			:seq|term
+			("Appropriately follows" indicator)
+
+			:nseq|term
+			("Semantically inappropriate response" indicator)
+
+		Usage:
+			(:| `no. :punish|estat )	// shorthand
+
+			(:| `no (e @punish %3|estat) )	// long form
+
+		To my recollection, the terminal is not processed.
+
+		The entirety of this section is extremely experimental, and not
+		particularly reliable.
+
+		In general, the system should be able to pick up on basic
+		sequences of exchanges without the user-driven pressure of cues
+		like the ones described above.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
