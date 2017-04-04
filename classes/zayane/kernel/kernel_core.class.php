@@ -12,19 +12,27 @@
 
 class kernel_core extends fmr
 {
-	function add($node)
+	function add(kernel_node $node)
 	{
 		$this->contents[] = $node;
 	}
-	function set($addr,$node)
+	function set(int $addr, kernel_node $node)
 	{
 		$this->contents[$addr] = $node;
 	}
-	function exists($addr)
+	function exists(int $addr)
 	{
 		return intval(isset($this->contents[$addr]));
 	}
-	function get($addr)
+	function get_nodes(array $addr) {
+		$out = [];
+		foreach($addr as $a) {
+			$out[$a] = $this->get($a);
+		}
+		return $out;
+	}
+	
+	function get(int $addr)
 	{
 		if($this->exists($addr) && is_object($this->contents[$addr]))
 			return $this->contents[$addr];
@@ -45,10 +53,13 @@ class kernel_core extends fmr
 	{	//With radical restructuring, this will become obsolete.
 		return count($this->contents);
 	}
-	function clear_address($addr)
+	function clear_address(int $addr)
 	{
 		//This is just a terrible idea
 		$this->contents[$addr] = null;
+	}
+	function get_contents() {
+		return $this->contents;
 	}
 }
 ?>

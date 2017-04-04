@@ -37,11 +37,7 @@ class interpreter //I think we're gonna need an interpreter_lib.class.php at som
 	}
 	static function is_terminal($s)
 	{
-		$result = intval(in_array
-			($s,[".",",","`","\"","=","~","-",";","e",":"])
-		);
-		if($result) return 1;
-		else return 0;
+		return lang::is_terminal_flag($s);
 	}
 	static function extract_terminals($tree,$important = 0)
 	{
@@ -222,11 +218,7 @@ class interpreter //I think we're gonna need an interpreter_lib.class.php at som
 		}
 		else return array();
 	}
-	// TODO: Please do this like you did prefix processing, and document the syntax too.  This is an abomination.
-	static function parse_estat($ar)
-	{
-	}
-	static function naturalize($ar)
+	static function naturalize($ar,$olit = false)
 	{
 		$out = array();
 		$add = "";
@@ -302,20 +294,19 @@ class interpreter //I think we're gonna need an interpreter_lib.class.php at som
 			$out[] = $add;
 			return interpreter::stripEscapes($lit." ".implode(" ",$out));
 		}
-		if(count($ar)==1 && is_array($ar)) return interpreter::naturalize($ar[0]);
+		if(count($ar)==1 && is_array($ar)) return interpreter::naturalize($ar[0],$olit);
 		for($i = 1; $i < count($ar); $i++)
 		{
 			if(is_array($ar[$i]))
 			{
-				$out[] = interpreter::naturalize($ar[$i]);
+				$out[] = interpreter::naturalize($ar[$i],$olit);
 			}
 			else
 			{
-				$out[] = interpreter::strip_pointer($ar[$i]);
+				$out[] = $olit ? $ar[$i] : interpreter::strip_pointer($ar[$i],$olit);
 			}
 		}
 		$out = implode(" ",$out);
-		//$GLOBALS['nstack']--;
 	
 		return interpreter::stripEscapes($out);
 	}
@@ -333,7 +324,7 @@ class interpreter //I think we're gonna need an interpreter_lib.class.php at som
 			break;
 
 			case '?':
-				if(!in_array("ARG",$layout))
+				if(!in_array("ARG",$layout) && !in_array("LOG",$layout))
 				throw new Exception("syntax error: no primary arguments. ($flat_layout)");
 
 				return 'question';
@@ -538,7 +529,7 @@ class interpreter //I think we're gonna need an interpreter_lib.class.php at som
 		}
 		return $tree;
 	}
-	static function preprocess($tree,$preprocess = 1) //Hardcoded pre-processing routines.
+	static function preprocess($tree,$preprocess = 1,$row = null) //Hardcoded pre-processing routines.
 	{	//You may want to create a preprocessor class at some point.
 		if(lang::is_terminal_flag($tree[0]))
 		{
@@ -556,6 +547,9 @@ class interpreter //I think we're gonna need an interpreter_lib.class.php at som
 			$tree = preprocessor::lazyPlus($tree);
 			$tree = preprocessor::lazyIHD($tree);
 			$tree = preprocessor::lazyClosure($tree); //what is this
+			if($row === 0) {
+				$tree = preprocessor::lazyNod($tree);
+			}
 		}
 		return $tree;
 	}

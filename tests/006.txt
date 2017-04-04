@@ -1,0 +1,5 @@
+(? _ (+ `a ,and `aa) "b )
+(? _ (+ `c ,and `cc ,and `ccc) "b )
+(? _ (+ `d ,and `dd ,and `ddd ,and `dddd) "b )
+(? ^ =so you know (+ "beaches ,and "shores) ,as in (+ `asdfs ,and `qwerts))
+

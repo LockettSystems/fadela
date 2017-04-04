@@ -1,0 +1,10 @@
+(i
+  (_ 
+    `$#x|x .is =without a doubt 
+    (+ "$#y|y ,and "$#z|z)
+    ({ ,if (_ `@#x|x .is "@#x|x) ) ,and
+    (} ,this implies (_ `@#y|y .is "@#y|y) )
+  ),.
+)
+(i _ `@#x|x .is "@#x|x ,. )
+(? (+ (_ .is `@#x|x "@#y|y ,? ) (_ .is `@#x|x "@#z|z ,? ) ) )

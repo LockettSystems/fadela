@@ -1,0 +1,20 @@
+(> `init .#0|fadela .#3|michael .%0|you .%3|i)
+(> `hello again .#0|fadela (c force-mirror))
+(> `good day to you .#0|fadela)
+(?
+  (/ ,please clarify:
+    (_ `x "y)
+    ,or
+    (_ `x -no "y)
+  )
+)
+(i (_ `x .y "z) (c force-mirror))
+(:| `ok)
+
+(> `hello again .#0|fadela)
+(i _ `$#0|dogs .$#is|are "$#1|cats ,.)
+(? _ .@#is|are `@#0|dogs "@#1|cats ,?)
+(i -not!)
+(i _ `@#0|dogs .@#is|are -most certainly not "@#1|cats ,.)
+(? _ .@#is|are `@#0|dogs "@#1|cats ,?)
+(i (= right on))

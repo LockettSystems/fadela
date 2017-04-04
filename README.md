@@ -21,22 +21,26 @@ FEATURES
 
 RELEASE/DOWNLOAD
 ===============
-Current release version is 0.2.0.
+Current release version is 0.2.1.
 
 [Github Repository](https://github.com/LockettSystems/fadela)
 
 CHANGELOG
 =========
-Changelog will be made available for versions that follow 0.2.0.
+### 0.2.1
+* External unit testing module.
+* Introduced support for single-word responses.
+* A more modular kernel, so that kernels within kernels (and scopes!) may become a reality.  No more referencing $GLOBALS.
+* Simplify kernel nodes
+* Increased modularity of objects, use of getters/setters
 
 ROADMAP
 =======
-### 0.2.1
+### 0.2.2
+* Drastic simplification of kernel architecture
 * Polishing of rewards/punishment system, as it ties into everything else.
 * Give more thought to routine, subroutine, etc. identification with respect to strategic interaction.
 * More sophisticated interjections based on sentiment state.  What we have is rudimentary.
-* A more modular kernel, so that kernels within kernels (and scopes!) may become a reality.  No more referencing $GLOBALS.
-* External unit testing module.
 ### 0.2.5
 * SQLite integration, esp. for logic.
 * A prettier and more functional avatar.

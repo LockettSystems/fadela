@@ -28,8 +28,25 @@ the rest are in commands_trim.txt
 include_once('uacommands.php');
 include_once('udcommands.php');
 
+function u_md5($x) {
+	return md5(serialize($x));
+}
+function permutate($ar) {
+	$out = [];
+	foreach($ar as $i => $v) {
+		$ar2 = $ar;
+		unset($ar2[$i]);
+		$s = permutate($ar2);
+		foreach($s as $w) {
+			$out[] = array_merge([$v],$w);
+		}
+		if(!count($s)) $out[] = [$v];
+	}
+	return $out;
+}
+
 function emit($s){
-	 echo $s;
+	 echo "$s\n";
 	return true;
 }
 
@@ -72,6 +89,9 @@ function colorguide()
 function COLOR($code,$str)
 {
 	return "\033[{$code}m$str\033[0m";
+}
+function BOLD($str) {
+	return COLOR("1m",$str);
 }
 function GREEN($str)
 {
@@ -179,7 +199,7 @@ function appendf($file,$s)
 	$b = fwrite($a,$s,strlen($s));
 	fclose($a);
 }
-function normalize($s)
+function normalize($s,$space = 0)
 {
 	/*$alphanumerictext = ereg_replace("[^A-Za-z0-9]","",$s);
 	return $alphanumerictext;*/
@@ -193,7 +213,7 @@ function normalize($s)
 			($o>=48 && $o<=57)
 			||($o>=65 && $o<=90)
 			||($o>=97 && $o<= 122)
-			/*||($c=="_"||$c=="-"||$c==" ") */
+			|| ($space && ($c=="_"||$c=="-"||$c==" "))
 		)
 		{
 			$out = $out.$s[$i];
@@ -284,7 +304,8 @@ function stderr($msg)
 }
 function printDat($ar,$multiplier = 1)
 {
-	if(cli()) file_put_contents('php://stderr',print_r($ar,1));
+	#if(cli()) file_put_contents('php://stderr',print_r($ar,1));
+	if(cli()) error_log(print_r($ar,1));
 	else echo '<textarea rows="'.(10*$multiplier).'" cols=100">' . print_r($ar,1) . '</textarea><br/>';
 }
 function printFat($ar)

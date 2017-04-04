@@ -39,22 +39,25 @@ trait fitter
 
 		foreach($base_nodes as $i /* index */ => $v /* response candidate */)
 		{
+			$this->log("Evaluating base node as smart mirror candidate at kernel address {$i}.");
 			$cur = [$i=>$v];
 			$prev_base = $this->prev_base($i);
 			$cur_vec = null;
 
 			if(
 				// temporary - don't respond with logical statements
-				!lang::is_logical_base_flag($v->term[0])
+				!lang::is_logical_base_flag($v->get_term()[0])
 				// don't attempt to respond to nonexistent previous statement
 				&& !empty($pre)
 				// follow the leader
-				&& $v->sender == 1
+				&& $v->get_sender() == 1
 				// but not when he's talking to himself
-				&& $this->get($prev_base)->sender != 1
+				&& $this->get($prev_base)->get_sender() != 1
 				// and he's not barking instructions
 				&& !$this->get($i)->has_command
 			) {
+				$this->log("Preparing data sets for analysis.");
+
 				$pair = $pre + $cur;
 				$vec = n2::vectorize_set($pair);
 				$cur_vec = last($vec);
@@ -75,6 +78,7 @@ trait fitter
 							'ea-0' => $cur_vec['ea-0'],
 						]:null;
 
+				$this->log("Analyzing data sets.");
 				// comparison
 				$cmp = n2::compare_set(
 					n2::softbayes($first_vec),
@@ -110,8 +114,11 @@ trait fitter
 				$pre_vec = $cur_vec;
 			}
 			$pre = $cur;
+			$this->log("Data set analysis complete.");
 		}
 		n2::crossref2($ballot);
+
+		// sort results by computed commonality
 
 		usort($ballot,function($x,$y){
 			$a = $x['prob'];
@@ -121,14 +128,18 @@ trait fitter
 		else	return 0;
 		});
 
-		$winner = first($ballot);
+		// pick winner
 
+		$winner = first($ballot);
+		
 		if(empty($ballot)) {
 			$vec = first($last_vec);
 			if($vec['ea-0'] >= 0) return [];
 		else	return [':|',['`','...']];
 		}
-		return $this->mirror($winner['base_ptr'],$sender,$receiver);
+
+		$out = $this->mirror($winner['base_ptr'],$sender,$receiver);
+		return $out;
 	}
 
 	function fitted_base($returns,$type)
@@ -186,12 +197,12 @@ trait fitter
 		$cond_addr = -1;
 
 		if(isset($logic->cond))
-			$cond_addr = $logic->cond->contents[0];
+			$cond_addr = $logic->cond->get(0);
 
 		if(in_array('IF',$layout) && !isset($logic->cond)) return 0;
 		if(!in_array('IF',$layout) && isset($logic->cond) && $this->get($cond_addr)->flag!='&') return 0;
 		if(isset($logic->cond) && $this->get($cond_addr)->flag!='&')
-			foreach($logic->cond->contents as $i=>$v)
+			foreach($logic->cond->get_contents() as $i=>$v)
 			{
 				$instr = new instr('i');
 				$instr->init_logical($this->scope->contents[$this->get($v)->logical]);
@@ -226,9 +237,9 @@ trait fitter
 				unset($layout[$i]);
 			}
 
-		if(	count($logic->subj1->contents)||
-			count($logic->subj2->contents)||
-			count($logic->act->contents)
+		if(	count($logic->subj1->get_contents())||
+			count($logic->subj2->get_contents())||
+			count($logic->act->get_contents())
 		) return 0;
 
 		//terminals
@@ -244,7 +255,7 @@ trait fitter
 	function fit_ifthen($type,$tree)
 	{
 		foreach($this->contents as $i=>$v)
-			if($v->block==1 && $v->term[0]==$type)
+			if($v->block==1 && $v->get_term()[0]==$type)
 			{
 				$t = $this->build($i);
 				$layout = interpreter::getLayout($t);
@@ -260,7 +271,7 @@ trait fitter
 		foreach($this->contents as $i=>$v)
 		{
 			$results_orig = $results;
-			if($v->block != 1 || $v->term[0] != '+') continue;
+			if($v->block != 1 || $v->get_term()[0] != '+') continue;
 			$tree = $this->build($i);
 			$struct = interpreter::getLayout($tree);
 			$struct[0] = '+';
@@ -288,7 +299,7 @@ trait fitter
 		foreach($this->contents as $i=>$v)
 		{
 			$results_orig = $results;
-			if($v->block != 1 || $v->term[0] != '/') continue;
+			if($v->block != 1 || $v->get_term()[0] != '/') continue;
 			$tree = $this->build($i);
 			$struct = interpreter::getLayout($tree);
 			$struct[0] = '/';
@@ -316,7 +327,7 @@ trait fitter
 		foreach($this->contents as $i=>$v)
 		{
 			if($v->block != 1) continue;
-		else	if($v->term[0] != $type) continue;
+		else	if($v->get_term()[0] != $type) continue;
 			$tree = $this->build($i);
 			$layout = interpreter::getLayout($tree);
 			$tree[array_search('ARG',$layout)] = $block;
@@ -328,7 +339,7 @@ trait fitter
 	function precise_fit_logical_terminal(&$logic,$cat,$layout_label,$n,&$layout,&$args,&$struct)
 	{
 		$flags = ['ARG1'=>'`','ARG2'=>'"','CMT'=>'.'];
-		foreach($logic->$cat->contents as $i=>$v)
+		foreach($logic->$cat->get_contents() as $i=>$v)
 		{
 			if(in_array($layout_label,$layout))
 			{
@@ -338,7 +349,7 @@ trait fitter
 				$struct[array_search($layout_label,$layout)] = $assn;
 				$args[$n] = 1;
 				unset($layout[array_search($layout_label,$layout)]);
-				unset($logic->$cat->contents[$i]);
+				$logic->$cat->remove($i);
 			}
 		}
 		$return = !intval(in_array($layout_label,$layout));
@@ -351,7 +362,7 @@ trait fitter
 		$ocounts = array_count_values(interpreter::getLayout($struct));
 		$count;
 		$tree = $this->build_from_kaddr($logic->$cat);
-		if(!isset($args[$n]) && $count = count($logic->$cat->contents))
+		if(!isset($args[$n]) && $count = count($logic->$cat->get_contents()))
 		{
 			if(!isset($counts['ARG'])) return 0;
 			if($counts['ARG'] > $count/2 && (isset($ocounts['ARG1'])||isset($ocounts['ARG2']))) return 0;

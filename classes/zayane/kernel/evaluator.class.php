@@ -106,6 +106,9 @@ trait evaluator
 		}
 		return $procedural_response;
 	}
+
+	// Evaluate each parse tree from query.
+
 	// Evaluates parse tree from rock bottom.
 	function evaluate($tree,$sender = 1,$receiver = 2)
 	{
@@ -123,6 +126,7 @@ trait evaluator
 		//Evaluate each base statement in parse tree, use results to generate a response, and return it.
 		foreach($tree as $i=>$base)
 		{
+			$this->log("Evaluating sentence {$i}/".count($tree)."...");
 			// Previous inquiry
 			$last_conf_inq = $this->last_conf_inq;
 			$last_conf_count = $this->last_conf_count;
@@ -132,7 +136,7 @@ trait evaluator
 			$this->receiver = $receiver;
 
 			//Generate a map of addresses
-			$map = $this->kernelize($base,$sender);
+			$map = $this->kernelize($base,$sender,null,$receiver);
 
 			foreach($base as $k=>$v) {
 				if(is_array($v) && $v[0] == 'c') {
@@ -171,7 +175,9 @@ trait evaluator
 			$this->push($returns);
 
 			//Contemplate logical knowledge base
+			$this->log("Executing sleep sequence.");
 			$this->sleep();
+			$this->log("Sleep sequence complete.");
 
 			//Skip command handling -- do more with this
 			if(in_array("SKIP",interpreter::getLayout($tree)))
@@ -184,6 +190,7 @@ trait evaluator
 			// Generate conflict resolution inquiry prior to response-time
 
 			// Generate an inquiry about ambiguities.
+			$this->log("Executing inquiry generation sequence.");
 			$conf_inq = $this->generate_ambiguity_inquiry($returns);
 
 			// If there are no ambiguities, generate an inquire about logical conflicts.
@@ -194,6 +201,7 @@ trait evaluator
 			if(!count($conf_inq)) {
 				$this->stack = []; //again, modularity.  please.  this is a disorganized mess.
 			}
+			$this->log("Inquiry generation sequence complete.");
 
 			// React to potential inquiry dismissals
 
@@ -229,10 +237,21 @@ trait evaluator
 			}
 
 			//Generate response to "instr" object, format it
-			$reply = $this->respond($returns,$sender,$receiver);
+			$this->log("Generating response...");
+			$reply = $this->respond($returns,$receiver,$sender);
+			$this->log("Response generation complete.");
 			
 			//Kernelize system response
-			$resp_map = $this->kernelize($reply,$receiver);
+			$resp_map = $this->kernelize($reply,$receiver,null,$sender);
+
+			//Store response logic - we need to find a superior alternative at some point, but hey, the nod prescribes it.  perhaps alternate logic root types?
+			if($returns->type == 'i') {
+				foreach($returns->logic as $l) {
+					$l = object_clone($l);
+					$l->root = 0;
+					$this->store_logic($l);
+				}
+			}
 
 			//Do all the necessary pointer work
 			$this->process_pointers($reply,$resp_map,null,$receiver,$sender);
@@ -263,7 +282,6 @@ trait evaluator
 			$out[] = $reply;
 		}
 		//Please make this entire 'ordeal' more modular rather than just hacking in a quick fix for avatar verification please
-
 		//Return results
 		return $out;
 	}
@@ -280,19 +298,20 @@ trait evaluator
 			case '`':
 			case '"':
 			case '.':
+				// Business as usual
 				$ptrs = [$map[1]];
 				$lit_ptr = $map[1];
-				if(!count($this->get($map[1])->pointer))
+				if(!count($this->get($map[1])->get_pointers()))
 				{
 					// Mark literal entries as ambiguous if no entries with such literals already exist.
 					$opts = $this->getnodesbyname($tree[1],[$map[1]]);
-					if(count($opts) && !($key == '.' && $parent->term[0] == '_'))
+					if(count($opts) && !($key == '.' && $parent->get_term()[0] == '_'))
 					{
 						$this->get($map[1])->ambiguous = 1;
 					}
 					$ar_keys = array_keys($opts);
 				}
-				else	$ptrs = $this->get($map[1])->pointer;
+				else	$ptrs = $this->get($map[1])->get_pointers();
 				$out = new kaddr($ptrs);
 				break;
 
@@ -312,7 +331,7 @@ trait evaluator
 				break;
 		}
 		//$ptrs = $lit_ptr;
-		if($key != ',' && !$this->get($lit_ptr)->ambiguous && !($key == '.' && $parent->term[0] == '_'))
+		if($key != ',' && !$this->get($lit_ptr)->ambiguous && !($key == '.' && $parent->get_term()[0] == '_'))
 		{
 			$this->oats->add(lang::isolate_string_literal($tree[1]), $ptrs, $key, lang::isolate_reference_flag($tree[1]));
 		}
@@ -323,35 +342,30 @@ trait evaluator
 		$key = $tree[0];
 		$special_logic = $this->is_special_block($map['block-id']);
 
-		if(lang::is_terminal_flag($key) && !$special_logic) return $this->evaluate_terminal($tree,$map,$sender,$receiver);
+		if(lang::is_terminal_flag($key) && !$special_logic) {
+			return $this->evaluate_terminal($tree,$map,$sender,$receiver);
+		}
 		$layout = interpreter::getLayout($tree);
 		$out;
-
 		switch($key)
 		{
 			//logic
 			case '=':
 			case '~':
 			case '-':
-				$out = new logic();
-				// First, track down the previous instr.
-				$prev = null;
-				for($i = count($this->stack)-1; $i >= 0; $i--)
-				{
-					if($this->stack[$i]->owner == $receiver) $prev = object_clone($this->stack[$i]);
-				}
-				if($prev == null) throw new Exception('TODO: Revision of interpretation of explicit types and responding accordingly');
-				// Second, assign truth to it (^ ARG LOG) style.
 				$out = new kaddr(null);
-				for($i = 0; $i < count($prev->logic); $i++)
-				{
-					$new_key = scope::invert($prev->logic[$i]->truth->getType(0),$key);
-					$prev->logic[$i]->truth = new truth($new_key);
-					$kaddr = $this->store_logic($prev->logic[$i]);
-					$out->merge($kaddr);
+				$keys = $this->list_base_keys();
+				if(empty($keys)) {
+					throw new Exception('Kernel error: ambiguous nod as of yet unsupported');
+				} else {
+					$last_node = $this->get(end($keys));
+					$instr = $this->evaluate_nod($key,$last_node->get_term()[0]);
+					foreach($instr->logic as $l) {
+						$kaddr = new kaddr($l->addr);
+						$out->merge($kaddr);
+					}
 				}
-				// Third, tag it as addressed . . . or not . . .
-				return $out;
+				$out->validate_logical();
 				break;
 			case '_':
 			case '^':
@@ -380,12 +394,12 @@ trait evaluator
 					// convert indirect to direct references
 					$v = array_map(function($ob) use ($sender,$receiver){
 						if(!is_object($ob) || get_class($ob) != 'kaddr') return $ob;
-						foreach($ob->contents as $i => $v) {
+						foreach($ob->get_contents() as $i => $v) {
 							if($v == 3) {
-								$ob->contents[$i] = $sender;
+								$ob->set($i,$sender);
 							}
 							if($v == 0) {
-								$ob->contents[$i] = $receiver;
+								$ob->set($i,$receiver);
 							}
 						}
 						return $ob;
@@ -396,6 +410,9 @@ trait evaluator
 					$kaddr = $this->store_logic($add);
 					$out->merge($kaddr);
 				}
+
+				$out->validate_logical();
+
 				break;
 
 			case '{': //If
@@ -405,6 +422,7 @@ trait evaluator
 					if($i == 0) continue;
 				else	if($layout[$i] == "ARG" || $layout[$i] == "ARG1" || $layout[$i] == "ARG2")
 						$out->merge($this->evaluate_block($v,$map[$i],$sender,$receiver));
+				$out->validate_logical();
 				break;
 			case '+':
 			case '/':
@@ -496,16 +514,17 @@ trait evaluator
 				if($index === false) $index = array_search("LOG",$layout);
 				if($index === false) throw new Exception('Error in kernel::evaluate_base()');
 				$rval = $this->evaluate_block($tree[$index],$map[$index],$sender,$receiver);
-				foreach($rval->contents as $i=>$v)
+				foreach($rval->get_contents() as $i=>$v)
 				{
 					$laddr = $this->get($v)->logical;
+					if($laddr == -1) throw new Exception('kernel::evaluate_base error');
 					if($key == "i")
 					{
 						$log = $this->scope->contents[$laddr];
-						if(	$this->get($log->subj1->contents[0])->flag != '&' &&
-							(in_array($log->type,['^','_']) || $this->get($log->act->contents[0])->flag != '&') &&
-							$this->get($log->subj2->contents[0])->flag != '&' &&
-							(!isset($log->cond) || $this->get($log->cond->contents[0])->flag != '&')
+						if(	$this->get($log->subj1->get(0))->flag != '&' &&
+							(in_array($log->type,['^','_']) || $this->get($log->act->get(0))->flag != '&') &&
+							$this->get($log->subj2->get(0))->flag != '&' &&
+							(!isset($log->cond) || $this->get($log->cond->get(0))->flag != '&')
 						)
 						{
 							$this->scope->contents[$laddr]->root = 1;
@@ -529,9 +548,81 @@ trait evaluator
 				if($c[1] == 'checkin') ; //change user
 				return null;
 				break;
+			// the nods
+			case '=':
+			case '~':
+			case '-':
+				$out = $this->evaluate_nod($key,'i');
+				break;
 			default:
 				throw new Exception('error -- invalid key');
 				break;
+		}
+		return $out;
+	}
+
+	// Evaluate (= blah) base (or perhaps intermediate block?)
+
+	function evaluate_nod($key,$type = 'i') {
+		/*
+		* i - storing logic with key
+		* ? - inquiring about logic with key
+		*/
+		$keys = $this->list_base_keys();
+		if(empty($keys)) {
+			throw new Exception('kernel::evaluate_nod error - no base keys found');
+		} else {
+			$instr = new instr($type,1);
+
+			$k = $keys[count($keys)-2];
+			$logs = [];
+
+			// iterate all kernel contents from second-to-last base to last base
+
+			for($i = $k+1; $i < count($this->contents); $i++) {
+
+				// terminate loop on reaching next base
+
+				if($this->get($i)->root == 1) break;
+
+				// otherwise, extract all logical nodes associated with current base and add to array
+
+				$laddr = $this->get($i)->logical;
+				if($laddr >= 0) {
+					$newl = object_clone($this->scope->contents[$laddr]);
+					$logs[] = $newl;
+				}
+			}
+
+			// iterate extracted logical objects, process
+			foreach($logs as $l) {
+				$l->root = 0;
+				$truth = $l->truth->getType();
+				$invert_truth = scope::invert($truth,$key);
+				$newtruth = new truth($invert_truth);
+				if($type == '?') {
+					$newtruth = new truth('=');
+				}
+				$l->truth = $newtruth;
+				$addr = $this->store_logic(object_clone($l));
+				$l->addr = $addr->get(0);
+			}
+
+			if(!count($logs)) {
+				return $instr;
+			}
+
+			// condense logical objects into single object
+
+			$log = array_shift($logs);
+			foreach($logs as $l) {
+				$log->merge($l,$this);
+			}
+
+			// build instr from logical object and return
+
+			$instr->init_logical($log);
+			$out = $instr;
 		}
 		return $out;
 	}

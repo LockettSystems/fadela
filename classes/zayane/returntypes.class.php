@@ -13,8 +13,8 @@
 //Kernel address
 class kaddr
 {
-	public	$contents,	//int[]
-		$flag,		//string
+	private $contents;	//int[]
+	public	$flag,		//string
 		$group;		//string
 
 	function __construct($addr)
@@ -45,6 +45,34 @@ class kaddr
 	{
 		return $this->contents;
 	}
+	function validate_logical() {
+		kernel::get_global($kernel);
+		foreach($this->contents as $v) {
+			if($kernel->get($v)->logical == -1 && !lang::is_ambiguous_flag($kernel->get($v)->flag)) {
+				throw new Exception('kernel::validate_logical: not logical');
+			}
+		}
+	}
+	public function get($i) {
+		if(!isset($this->contents[$i])) {
+			throw new Exception("kaddr::get() - Index $i does not exist.");
+		}
+
+		return $this->contents[$i];
+	}
+	public function set($i,$v) {
+		$this->contents[$i] = $v;
+	}
+	public function add($v) {
+		$this->contents[$i] = $v;
+	}
+	public function get_contents() {
+		return $this->contents;
+	}
+	public function remove($i) {
+		unset($this->contents[$i]);
+		$this->contents = array_values($this->contents);
+	}
 }
 
 //Sentimental info
@@ -56,6 +84,10 @@ class estat
 		$decay_regular = 0.75,
 		$decay_radical = 0.99,
 		$time = [0,0,0]; //-1 for anticipated, 0 for present, 1 for past
+
+	public	$s1,
+		$s2,
+		$when;
 
 	function __construct($l = 0, $p = 0, $d = 0, $a = 0, $t = [0,0,0])
 	{
@@ -231,6 +263,14 @@ class logic
 		$this->subj1->flag = '`';
 		$this->act->flag = '.';
 		$this->subj2->flag = '"';
+
+		$this->self_validate();
+	}
+	function self_validate() {
+		kernel::get_global($kernel);
+		if(isset($this->cond) && is_object($this->cond)) {
+			$this->cond->validate_logical();
+		}
 	}
 	function matches($logic)
 	{
@@ -259,15 +299,15 @@ class logic
 	}
 	function subj1_addr()
 	{
-		return $this->subj1->contents;
+		return $this->subj1->get_contents();
 	}
 	function subj2_addr()
 	{
-		return $this->subj2->contents;
+		return $this->subj2->get_contents();
 	}
 	function act_addr()
 	{
-		return $this->act->contents;
+		return $this->act->get_contents();
 	}
 	function merge($logic,$kernel)
 	{

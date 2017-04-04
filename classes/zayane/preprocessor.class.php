@@ -78,7 +78,20 @@ class preprocessor
 				$k = consume1($tree[$i]);
 				$v = $tree[$i];
 				$i++;
-				while($i < count($tree) && !is_array($tree[$i]) && $tree[$i][0]!="`" && $tree[$i][0]!="\"" && $tree[$i][0]!="." && $tree[$i][0]!="," && $tree[$i][0]!="=" && $tree[$i][0]!="~" && $tree[$i][0]!="-" && $tree[$i][0]!="{" && $tree[$i][0]!="}" && $tree[$i][0]!=':' /**/)
+				while(
+					$i < count($tree)
+					&& !is_array($tree[$i])
+					&& $tree[$i][0]!="`"
+					&& $tree[$i][0]!="\""
+					&& $tree[$i][0]!="."
+					&& $tree[$i][0]!=","
+					&& $tree[$i][0]!="="
+					&& $tree[$i][0]!="~"
+					&& $tree[$i][0]!="-"
+					&& $tree[$i][0]!="{"
+					&& $tree[$i][0]!="}"
+					&& $tree[$i][0]!=':'
+				/**/)
 				{
 					$v .= " ".$tree[$i];
 					$i++;
@@ -99,6 +112,13 @@ class preprocessor
 	}
 	static function lazyClosure($tree)
 	{
+		return $tree;
+	}
+	static function lazyNod($tree) {
+		$base_flag = lang_tree::getBaseFlag($tree);
+		if(lang::is_logical_terminal_flag($base_flag)) {
+			$tree[0] = array_merge(array_merge(array('i'),$tree));
+		}
 		return $tree;
 	}
 }

@@ -1,0 +1,7 @@
+(i * `$#0|x .$#1|acts upon "$#2|z [*({ ,if (_ `@#0|x .is "$#3|an actor) ) *] ,.)
+(? ,does (* `@#0|x .@#1|act upon "@#2|z) ,?)
+(? * `$&q|what .@#1|acts upon "@#2|z ,?)
+(? * "$&q|what does `@#0|x .@#1|act upon ,?)
+(? * .$&q|what ,does `@#0|x ,do to "@#2|z ,?)
+(? * .$&q|what ,does `@#0|x ,do "$&null|\  ,?)
+

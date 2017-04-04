@@ -1,0 +1,10 @@
+// now with irregular grammar rules
+(i (* =truth "$#z|subj2 .$#y|act `$#x|subj1))
+(i (* =truth (+ "$#q|subj2 "$#qq|subj2 ) .@#y|act `@#x|subj1))
+
+(?
+  (+
+    (* .@#y|act "@#z|subj2 `@#x|subj1 )
+    (* .@#y|act "$#zz|subj3 `@#x|subj1 )
+    (* .@#y|act "$#zzz|subj4 `@#x|subj1 )))
+

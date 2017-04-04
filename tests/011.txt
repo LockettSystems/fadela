@@ -1,0 +1,9 @@
+(i
+  (_ `$#apples|las manzanas .son =ciertamente (+ "$#red|rojas ,y "$#green|verdes))
+  ,.)
+(i
+  (_ `@#apples|las manzanas .son ~inciertamente "$#yellow|amarillas)
+  ,.)
+(?
+  (_ .son `@#apples|las manzanas (+ "@#red|rojas ,? "@#green|verdes ,?  "@#yellow|amarillas ,? )))
+

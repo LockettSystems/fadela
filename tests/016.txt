@@ -1,0 +1,27 @@
+(? ^ (+ "d ,and "e ,and "f) ,, ,as in ," (* `a .b "c) ," ,? )
+(i * `$#0|x .$#1|acts upon "$#2|z)
+(i * `x .acts upon "z)
+(:| `not answering that)
+(:| `foo)
+(i
+    (^
+        (+
+            (" #42|x)
+            (, and)
+            (" #44|acts upon)
+            (, and)
+            (" #46|z)
+         )
+        (, ,)
+        (, as in)
+        (, ")
+        (*
+            (` #34|x)
+            (. #36|acts upon)
+            (" #38|z)
+         )
+        (, ")
+        (, .)
+     )
+ )
+

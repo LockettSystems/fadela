@@ -50,7 +50,7 @@ class kernel_basic extends kernel_core
 	}
 	function getPointers($addr)
 	{
-		$out = $this->get($addr)->pointer;
+		$out = $this->get($addr)->get_pointers();
 		if($out==null) return array();
 		else return $out;
 	}
@@ -58,7 +58,7 @@ class kernel_basic extends kernel_core
 	{
 		if($addr == 0) $addr = $this->receiver;
 		if($addr == 3) $addr = $this->sender;
-		return $this->get($addr)->term;
+		return $this->get($addr)->get_term();
 	}
 	function get_heap_addr($addr)
 	{
@@ -109,12 +109,12 @@ class kernel_basic extends kernel_core
 	{
 		$out = [];
 		$node = $this->get($addr);
-		$t = $node->term;
+		$t = $node->get_term();
 		if(!is_array($t))
 		{	//TODO do something more appropriate and better integrated with existing infrastructure
 			if(!in_array($prev_flag,$flags)) return $out;
-			if(in_array(3,$node->pointer)) return ['_SELF'];
-			if(in_array(0,$node->pointer)) return ['_OTHER'];
+			if(in_array(3,$node->get_pointers())) return ['_SELF'];
+			if(in_array(0,$node->get_pointers())) return ['_OTHER'];
 			return [$t];
 		}
 	else	foreach($t as $i=>$v)
@@ -128,12 +128,12 @@ class kernel_basic extends kernel_core
 	{
 		$out = [];
 		$base = $this->get($addr);
-		if(is_array($base->term)) {
-			foreach($base->term as $i=>$v)
+		if(is_array($base->get_term())) {
+			foreach($base->get_term() as $i=>$v)
 				if(!$i) continue;
 			else	$out = array_merge($out,$this->extract_tree_pointers($v));
 		}
-	else	$out = array_merge($out,$base->pointer);
+	else	$out = array_merge($out,$base->get_pointers());
 		// TODO in the future you may want to run the same conceptual extraction process as the scope does.
 		return array_unique($out);
 	}

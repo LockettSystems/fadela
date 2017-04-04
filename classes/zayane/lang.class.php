@@ -20,12 +20,12 @@ class literal_parser
 	public $literal = null; //The actual terminal string.
 	public $estat = [];
 
-	function __construct($str)
+	function __construct(string $str)
 	{
 		$str_init = $str;
 		$this->parse($str);
 	}
-	function parse($str)
+	function parse(string $str)
 	{
 		if($this->parse_heap_ref($str)) return;
 	else	if($this->parse_registry_ref($str)) return;
@@ -33,19 +33,25 @@ class literal_parser
 	else	if($this->parse_literal($str)) return;
 	else	throw new Exception('string literal parser error');
 	}
-	function parse_estat_atom($v)
+	function parse_estat_atom(string $v)
 	{
+		// initialization
 		$node = ['char' => null, 'val' => 0, 'when' => 0];
+		// "past" indicator
 		if(consume($v,"'")) $node['when'] = -1;
 		$c = consume1($v);
+		// check for category code
 		if(in_array(strtolower($c),['l','p','d'])) $node['char'] = strtolower($c);
-	else	if(in_array($c,['%','^'])) return null;
+		// check for stack reference address
+	else	if(in_array($c,['%','#'])) return null;
+		// check for heap reference address 
 	else	if(in_array($c,['$','@']))
 		{
 			$this->heap_flag = $c;
 			$this->addressee = $v;
 			return 1;
 		}
+		// skip if invalid syntax
 	else	return 0;
 		$weights = [
 			 '+++' => 1.5,
@@ -56,6 +62,8 @@ class literal_parser
 			 '---' => -1.5
 		];
 		$success = 0;
+		// parse weight, skip if no match
+		// TODO consider ambivalence/neutral sentiment (~) maybe
 		foreach($weights as $sym => $weight)
 			if(consume($v,$sym))
 			{
@@ -63,8 +71,9 @@ class literal_parser
 				$success = 1;
 			}
 		if(!$success) return 0;
-
+		// "future" indicator
 		if(consume($v,"'")) $node['when'] = 1;
+		// if no type code or prefix still has remnants, skip.
 		if(strlen($v) || $node['char'] == null) return 0;
 		return $node;
 	}
@@ -112,13 +121,15 @@ class literal_parser
 		if(count($ptr_split) == 1)
 		{
 			$ptr_str = explode(',',$ptr_str);
-			foreach($ptr_str as $i=>$v)
-			if(intval($v) != $v) return 0;
+			foreach($ptr_str as $i=>&$v) {
+				if(intval($v) != $v) return 0;
+				$v = intval($v);
+			}
 			$this->address = $ptr_str;
 		}
 	else	if(count($ptr_split) == 2 && $estat)
 		{
-			echo ">";
+#			echo ">";
 			$this->address = $ptr_split[0];
 			$this->subjects = $ptr_split[1];
 		}
@@ -156,8 +167,10 @@ class literal_parser
 		if(isset($ptr_info['info']))
 		{
 			$ptr_info['info'] = explode(',',$ptr_info['info']);
-			foreach($ptr_info['info'] as $i=>$v)
+			foreach($ptr_info['info'] as $i=>&$v) {
 				if(intval($v) != $v) return 0;
+				$v = intval($v);
+			}
 			$this->address = $ptr_info['info'];
 		}
 
@@ -176,6 +189,15 @@ class lang //Static only, please.
 	static	$stemflags = array("_","^","*","{","}","+","/");
 	static	$termflags = array("`","\"",".",",",";","=","-","~","e",":");
 	static	$reference_flags = array('#','%','$#','$%','@#','@%','&','$&','@&'); //please account for ambiguity
+
+	static function is_ambiguous_flag($s) {
+		return in_array($s,['&','$&','@&']);
+	}
+
+	static function is_ambiguous($s) {
+		$prefix = self::isolate_reference_flag($s);
+		return in_array($prefix,['&','$&','@&']);
+	}
 
 	static function is_significant_flag($s)
 	{
@@ -318,6 +340,11 @@ class lang //Static only, please.
 			case 'i': return '?'; break;
 			default: throw new Exception('lang error: invalid logical base key'); break;
 		}
+	}
+}
+class lang_tree {
+	static function getBaseFlag($tree) {
+		return $tree[0][0][0];
 	}
 }
 ?>

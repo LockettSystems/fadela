@@ -101,6 +101,24 @@ class algorithms
 		$s = implode("|",$ar);
 		return $s;
 	}
+
+	static function ng2($ar,$n = 2) {
+		if($n < 0) return [$ar];
+		$out = [];
+		$lit = [];
+		foreach($ar as $item) {
+			$lit[] = $item;
+			consume1($ar);
+			$next = algorithms::ng2($ar,$n-1);
+			foreach($next as $next_item) {
+				$out_add = array_merge([implode(" ",$lit)],$next_item);
+				if(count($out_add) <= $n+1 || $n == -1) $out[] = $out_add;
+			}
+			if(empty($next)) $out[] = [implode(" ",$lit)];
+		}
+		return $out;
+	}
+
 	static function ga($ar,$n)
 	{
 		$ops = 0;
@@ -131,7 +149,7 @@ class algorithms
 		$out = implode(" ",$out);
 		return $out;
 	}
-	static function gset($ar)
+	static function gset(array $ar)
 	{
 		$out = array();
 		for($i = 0; $i < count($ar)*(count($ar)+1)/2; $i++)

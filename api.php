@@ -14,8 +14,8 @@ $estat = [];
 foreach($results as $j=>$result)
 	foreach($result as $i=>$v)
 	{
-		$man_name = $kernel->get(1)->name['default']->select();
-		$bot_name = $kernel->get(2)->name['default']->select();
+		$man_name = kernel_node::getName("#",0,2,1);
+		$bot_name = kernel_node::getName("#",3,2,1);
 		if(strlen($man_name)==0) $man_name = "user";
 		if(strlen($bot_name)==0) $bot_name = "system";
 		$prettyprint = 1;

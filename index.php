@@ -13,8 +13,8 @@ set_time_limit(0);
  *
 */
 $header = 0;
-$version = "0.1.9";
-$year = "2014";
+$version = "0.2.0";
+$year = "2016";
 
 include 'commands.php';
 include 'classes/index.php';
@@ -55,7 +55,7 @@ echo	'<b>FadelaBOT</b> v'.$version.'<br/>&copy;'.$year.' Lockett Analytical Syst
 echo	'<html>',
 	'<head>',
 	'<style>html{font-family:"verdana",sans-serif; font-size:12px} td{font-size:11px;} /*textarea{border:none;}*/</style>',
-	'<script type="text/javascript" src="jquery-1.10.2.js"></script>',
+	'<script type="text/javascript" src="jquery-3.2.0.min.js"></script>',
 	'</head>',
 	'<body>';
 
@@ -81,8 +81,8 @@ if(isset($_POST['go']))
 	foreach($results as $j=>$result)
 		foreach($result as $i=>$v)
 		{
-			$man_name = $kernel->get(1)->name['default']->select();
-			$bot_name = $kernel->get(2)->name['default']->select();
+			$man_name = kernel_node::getName('#',1,1,2);
+			$bot_name = kernel_node::getName('#',2,1,2);
 			if(strlen($man_name)==0) $man_name = "user";
 			if(strlen($bot_name)==0) $bot_name = "system";
 			$prettyprint = 1;

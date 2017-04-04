@@ -13,8 +13,9 @@
 class parser
 {
 	//TODO: Incorporate the natural language inferrence algorithm into this.
-	static function parse(&$str,$row,$preprocess = 1,$softspace = 0,&$kernel = null,$debug = 0)
+	static function parse(&$str,$row,$preprocess = 1,$softspace = 0,&$kernel = null,$debug = 0,$ostr = null)
 	{
+		if(empty($ostr)) $ostr = $str;
 		$out = [];
 		$index = 0;
 		while(strlen($str))
@@ -28,7 +29,7 @@ class parser
 		else	if(consume($str,"("))
 			{
 				$index++;
-				$out[] = parser::parse($str,$row+1,$preprocess,$softspace,$kernel,$debug);
+				$out[] = parser::parse($str,$row+1,$preprocess,$softspace,$kernel,$debug,$ostr);
 			}
 			//Return Handling
 		else	if(consume($str,")")) break;
@@ -52,10 +53,10 @@ class parser
 		else	$out[$index] = (isset($out[$index])?$out[$index]:"").consume1($str);
 
 		if(!empty($out)) {
-			$preprocessed = interpreter::preprocess(array_values($out),($preprocess && $out[0] != 'c'));
+			$preprocessed = interpreter::preprocess(array_values($out),($preprocess && $out[0] != 'c'),$row);
 			return $preprocessed;
 		} else {
-			throw new Exception("Error: Nothing parsed.");
+			throw new Exception("Error: Nothing parsed.\nString: $ostr");
 		}
 	}
 	static function split_chars($s,$softspace = 0)

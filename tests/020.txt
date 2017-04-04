@@ -1,0 +1,20 @@
+[* complete sentence training example *]
+(i * `$#0|x .$#1|y "$#2|z)
+
+[* ambiguous example x to be inquired about *]
+(i * `x .y "z)
+
+[* resolve value of x *]
+(i(^(*(` #4|x)(. #6|y)(" #8|z))(" #12|x)))
+
+[* Dismissals for interjection and subsequent cooldown sufficient for a positive interjection *]
+(> `foo)(> `foo)(> `foo)(> `foo)
+
+[* misc. informative statements currently do not trigger anything *]
+(i _ `a .b "c)
+
+[* Resolve one.  Positive estat expression. *]
+(i(^(*(` #4|x)(. #6|y)(" #8|z))(" #14|y)))
+
+[* dismiss another inquiry, get another interjection *]
+(> `foo)(> `foo)

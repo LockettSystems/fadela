@@ -1,0 +1,17 @@
+//(i ^ (+ `a `b) ,hurrrrrrr (+ "c "d) )
+
+[* complete sentence training example *]
+(i _ `$#0|x .$#1|y "$#2|z)
+
+[* ambiguous example x to be inquired about *]
+(i _ `x .@#1|y "@#2|z)
+
+//(> `blah)
+
+[* resolve value of x *]
+(i(^(_(` #4|x)(. #6|y)(" #8|z))(" #12|x)))
+
+//(?(^(_(` #4|x)(. #6|y)(" #8|z))(" #12|x)))
+//(> `whoa)
+//(? _ `x .y "z)
+

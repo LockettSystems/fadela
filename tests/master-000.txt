@@ -1,0 +1,7 @@
+(c test 023		// returns (> `#9|foo); test captures last "normal" output; as such test commands may evaluate it
+  (c block >)		// establishes that the base block has type '>'
+  (c block ` 1)		// establishes that the block in index 1 has type '`'
+  (c flag # 1)		// establishes that the flag of the literal contained by the block in index 1 is #
+  (c has_ptr 0 1)	// establishes that the terminal in index 1 has address 0
+  (c literal _USR 1)	// establishes that the literal contained by the block in index 1 is _USR
+ )

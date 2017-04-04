@@ -32,17 +32,27 @@ trait kernel_static
 	}
 
 	static function set_global($x) {
+#		echo "SET: ".u_md5($x)."\n";
 		kernel::$instances[$x->uuid] = $x;
 	}
 	static function get_global(&$x)
 	{
 		$static_keys = array_keys(kernel::$instances);
-		if(!count($static_keys))
+		if(!count($static_keys)) {
 			throw new Exception('Global kernel does not exist.');
-		else	{
-			$a = kernel::$instances[$static_keys[0]];
+		} else {
+			$a = end(kernel::$instances);
 			$x = $a;
 		}
+#		echo "GET: ".u_md5($x)."\n";
+	}
+	static function remove_global($x) {
+		unset(kernel::$instances[$x->uuid]);
+	}
+	static function initialize() {
+		$uuid = uuid();
+		kernel::set_global(new kernel($uuid));
+		return kernel::$instances[$uuid];
 	}
 }
 ?>

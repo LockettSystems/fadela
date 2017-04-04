@@ -34,6 +34,12 @@ class scope extends fmr
 		$this->contents = [];
 		$this->conflicts = [];
 	}
+	function get($i) {
+		if(!isset($this->contents[$i])) {
+			throw new Exception("scope::get() error: address '$i' not found.\n".print_r($this,1));
+		}
+		return $this->contents[$i];
+	}
 	function disambiguate($addr,$kernel)
 	{
 		foreach($this->contents as $i=>$v)
@@ -46,7 +52,7 @@ class scope extends fmr
 				foreach($x as $j=>$w) $z = array_merge($w->addrs());
 				$z = array_unique($z);
 				foreach($z as $j=>$w)
-					if($kernel->contents[$w]->search($kernel->contents[$addr]->term)==1)
+					if($kernel->get($w)->search($kernel->get($addr)->term)==1)
 					{
 						return $w;
 					}
@@ -68,7 +74,7 @@ class scope extends fmr
 	function dump_hypotheticals() //I smell a memory leak.
 	{
 		foreach($this->contents as $i=>$v)
-			if($v->type == -1) $this->contents[$i]->root = 0;
+			if($v->type == -1) $this->get($i)->root = 0;
 	}
 	function sleep($kernel,$hypotheticals = 0)
 	{
@@ -82,9 +88,9 @@ class scope extends fmr
 				if($eval == 1 && isset($eval->impl))
 					foreach($eval->impl->contents as $i=>$v)
 					{
-						if($this->contents[$kernel->contents[$v]->logical]->root == 0)
+						if($this->get($kernel->get($v)->logical)->root == 0)
 						{
-							$this->contents[$kernel->contents[$v]->logical]->root = ($hypotheticals)?-1:1;
+							$this->get($kernel->get($v)->logical)->root = ($hypotheticals)?-1:1;
 							$ops = 1;
 						}
 					}
@@ -94,12 +100,12 @@ class scope extends fmr
 	}
 	function verify($x,$y,$cat,$kernel)
 	{
-		if(!count($x->$cat->contents) && !count($x->$cat->contents)) return 1;
-	else	if(!count($x->$cat->contents) || !count($y->$cat->contents)) return 0;
+		if(!count($x->$cat->get_contents()) && !count($x->$cat->get_contents())) return 1;
+	else	if(!count($x->$cat->get_contents()) || !count($y->$cat->get_contents())) return 0;
 
-		$x_roots = $kernel->extract_concept_roots($x->$cat->contents[0]);
+		$x_roots = $kernel->extract_concept_roots($x->$cat->get(0));
 		if(!count($x_roots)) throw new AmbiguousRootException('Ambiguous root.');
-		$y_roots = $kernel->extract_concept_roots($y->$cat->contents[0]);
+		$y_roots = $kernel->extract_concept_roots($y->$cat->get(0));
 
 		$intersection = array_intersect($x_roots,$y_roots);
 		$out = count($intersection)/count($x_roots);
@@ -159,12 +165,12 @@ class scope extends fmr
 	function create_hypotheticals($logic,$kernel)
 	{
 		//if implications, set them to temporarily true -- TODO QA seriously
-		if(isset($logic->cond) && $kernel->get($logic->cond->contents[0])->flag != '&')
+		if(isset($logic->cond) && $kernel->get($logic->cond->get(0))->flag != '&')
 		{
-			foreach($logic->cond->contents as $i=>$v)
+			foreach($logic->cond->get_contents() as $i=>$v)
 			{
-				if($this->contents[$kernel->contents[$v]->logical]->root == 0)
-					$this->contents[$kernel->contents[$v]->logical]->root = -1;
+				if($this->get($kernel->get($v)->logical)->root == 0)
+					$this->get($kernel->get($v)->logical)->root = -1;
 			}
 		}
 		else return 0;
@@ -177,16 +183,17 @@ class scope extends fmr
 //		if(!count($logic->subj1_addr())) return -1;
 //		if(!count($logic->subj2_addr())) return -1;
 
-		$subj1 = $kernel->extract_concept_roots($logic->subj1->contents[0]);
+		$subj1 = $kernel->extract_concept_roots($logic->subj1->get(0));
 
-		if(count($logic->act->contents))
-			$act = $kernel->extract_concept_roots($logic->act->contents[0]);
+		if(count($logic->act->get_contents()))
+			$act = $kernel->extract_concept_roots($logic->act->get(0));
 		else	$act = [null];
 
-		$subj2 = $kernel->extract_concept_roots($logic->subj2->contents[0]);
+		$subj2 = $kernel->extract_concept_roots($logic->subj2->get(0));
 
-		if(isset($logic->cond) && count($logic->cond->contents))
-			$cond = $kernel->extract_concept_roots($logic->cond->contents[0]);
+
+		if(isset($logic->cond) && count($logic->cond->get_contents()))
+			$cond = $kernel->extract_concept_roots($logic->cond->get(0));
 		else	$cond = [null];
 
 		if(count($subj1) && count($act) && count($subj2) && count($cond)) return 0;
@@ -206,10 +213,10 @@ class scope extends fmr
 		{
 			if($v->root == 0) continue;
 		else	if($logic->type != $v->type) continue;
-		else	if($kernel->contents[$v->subj1->contents[0]]->flag == '&') continue;
-		else	if(count($v->act->contents) && $kernel->contents[$v->act->contents[0]]->flag == '&') continue;
-		else	if($kernel->contents[$v->subj2->contents[0]]->flag == '&') continue;
-		else	if(isset($v->cond) && $kernel->contents[$v->cond->contents[0]]->flag == '&') continue;
+		else	if($kernel->get($v->subj1->get(0))->flag == '&') continue;
+		else	if(count($v->act->get_contents()) && $kernel->get($v->act->get(0))->flag == '&') continue;
+		else	if($kernel->get($v->subj2->get(0))->flag == '&') continue;
+		else	if(isset($v->cond) && $kernel->get($v->cond->get(0))->flag == '&') continue;
 			$subj1; $action; $subj2; $cond; $truth;
 			$subj1_replacement;
 			$act_replacement;
@@ -242,9 +249,9 @@ class scope extends fmr
 			$cond = 0;
 			if(isset($v->cond))
 			{
-				foreach($v->cond->contents as $j=>$w)
+				foreach($v->cond->get_contents() as $j=>$w)
 				{
-					$l = $this->contents[$kernel->contents[$w]->logical];
+					$l = $this->get($kernel->get($w)->logical);
 					$eval = $this->evaluate($l,$kernel,1,1);
 					$cond += ($eval*2-1);
 				}
@@ -255,16 +262,16 @@ class scope extends fmr
 
 			if($subj1 != -1 && $action != -1 && $subj2 != -1 && $cond != -1) continue;
 
-			if($subj1 == -1) $logic->subj1->contents[0] = $v->subj1->contents[0];
-			if($action == -1) $logic->act->contents[0] = $v->act->contents[0];
-			if($subj2 == -1) $logic->subj2->contents[0] = $v->subj2->contents[0];
+			if($subj1 == -1) $logic->subj1->set(0, $v->subj1->get(0));
+			if($action == -1) $logic->act->set(0, $v->act->get(0));
+			if($subj2 == -1) $logic->subj2->set(0, $v->subj2->get(0));
 			if($cond == -1 && isset($v->cond) ) $logic->cond = object_clone($v->cond);
 
 			return 1;
 		}
 		return -1;		
 	}	
-	function simple_logic_eval($logic)
+	function simple_logic_eval(logic $logic)
 	{
 		$filter = function($logic,$v)
 		{
@@ -285,8 +292,8 @@ class scope extends fmr
 
 	function simple_compare($logic,$v)
 	{
-		if(is_int($logic)) $logic = $this->contents[$logic];
-		if(is_int($v)) $v = $this->contents[$v];
+		if(is_int($logic)) $logic = $this->get($logic);
+		if(is_int($v)) $v = $this->get($v);
 		kernel::get_global($kernel);
 		$subj1 = $this->verify($logic,$v,"subj1",$kernel);
         	$action = ($logic->type == '_'||$logic->type == '^')?1:$this->verify($logic,$v,"act",$kernel);
@@ -306,7 +313,7 @@ class scope extends fmr
 			foreach($v->impl->contents as $k=>$x)
 			{
 				if($j > $k) continue;
-				$impl_mag = $this->simple_compare($kernel->contents[$w]->logical,$kernel->contents[$x]->logical);
+				$impl_mag = $this->simple_compare($kernel->get($w)->logical,$kernel->get($x)->logical);
 				$cond = 1; //for now TODO this will be dealt with in verbose mode or something
 				$sum += $impl_mag * $cond;
 				// The usual "simple" logic magnitude calculations.
@@ -318,7 +325,7 @@ class scope extends fmr
 		return $impl*2-1;
 	}
 
-	function evaluate($logic,$kernel,$numeric = 0,$sleeping = 0)
+	function evaluate(logic $logic,$kernel,$numeric = 0,$sleeping = 0)
 	{
 		// For each compatible entry, evaluate logic against it without considering COND/IMPL.
 		$equivs = $this->simple_logic_eval($logic);
@@ -328,7 +335,7 @@ class scope extends fmr
 		if(is_int($logic))
 		{
 			$logic_addr = $logic;
-			$logic = $this->contents[$logic_addr];
+			$logic = $this->get($logic_addr);
 		}
 
 		//initialization
@@ -354,7 +361,7 @@ class scope extends fmr
 		//I don't know what I did but everything works miraculously now.  Please clean this function up so it makes sense to you and the world.
 		foreach($equivs as $i=>$mag) //TODO check for ambiguous blocks, or make provisions for avoiding them earlier on.
 		{
-			$v = $this->contents[$i];
+			$v = $this->get($i);
 			if($v->root == 0) continue;
 		else	if($logic->type != $v->type) continue;
 
@@ -368,11 +375,11 @@ class scope extends fmr
 			// this is the source of the problem.  address it:
 
 			$cond = 0;
-			if(isset($v->cond))
+			if(!empty($v->cond))
 			{
-				foreach($v->cond->contents as $j=>$w)
+				foreach($v->cond->get_contents() as $j=>$w)
 				{
-					$l = $this->contents[$kernel->contents[$w]->logical];
+					$l = $this->get($kernel->get($w)->logical);
 					$eval = $this->evaluate($l,$kernel,1,1);
 					$cond += ($eval*2-1);
 				}
@@ -420,7 +427,7 @@ class scope extends fmr
 	}
 	function conform($laddr,$kernel)
 	{	//OBEY
-		$master = $this->contents[$laddr];
+		$master = $this->get($laddr);
 		foreach($this->contents as $i=>$v)
 			if($master->subj1->contents[0] != $v->subj1->contents[0]) continue;
 		else	if($master->subj2->contents[0] != $v->subj2->contents[0]) continue;

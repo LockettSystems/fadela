@@ -32,7 +32,7 @@ tr.exchange:nth-last-child(1), tr.exchange:nth-last-child(2) {
 }
 </style>
 <body>
-<script type="text/javascript" src="jquery-1.10.2.js"></script>
+<script type="text/javascript" src="jquery-3.2.0.min.js"></script>
 <table>
 <tr><td><b>FadelaBOT</b> Version 0.2.0<br/> &copy; 2015 Lockett Analytical Systems</td></tr>
 <tr>

@@ -1,0 +1,5 @@
+// Test Case 1 -- Complete and inquire about completion if desired. Otherwise, reply with "..."
+(i * `$&x|somebody .$#1|poisoned "$#2|the waterhole ,.)
+
+// Test Case 2 -- Complete, or reply with "..."
+(? * `@&x|who .@#1|poisoned "@#2|the waterhole ,?)

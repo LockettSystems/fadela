@@ -15,7 +15,7 @@ class kernel_lib
 
 	static function microballot(&$champion,$challenger,&$champion_weight,$challenger_weight)
 	{
-		if($challenger_weight > $champion_weight)
+		if($challenger_weight > $champion_weight || empty($champion))
 		{
 			$champion = $challenger;
 			$champion_weight = $challenger_weight;
@@ -38,7 +38,7 @@ class kernel_lib
 		if($id==3 && $type=="name") return kernel_lib::getName($kernel,$sender,$type,$bef,$aft,$sender,$receiver);
 		if($id==0 && $type=="name") return kernel_lib::getName($kernel,$receiver,$type,$bef,$aft,$sender,$receiver);
 
-		return $kernel->contents[$id]->getName($type,$bef,$aft);
+		return kernel_lib::getName($type,$id);
 	}
 	static function getNeighbors($kernel,$parent,$index)
 	{
@@ -50,7 +50,7 @@ class kernel_lib
 		$out = array();
 		foreach($k->contents as $i=>$v)
 		{
-			if(!is_array($v->term)) $out[$i] = $v->term;
+			if(!is_array($v->term)) $out[$i] = $v->get_term();
 		}
 		return $out;
 	}
@@ -80,7 +80,7 @@ class kernel_lib
 			if($sentence->flag != null) $out[] = array
 			(	//Stuff
 				'flag' => $sentence->flag,
-				'pointer' => $sentence->pointer,
+				'pointer' => $sentence->get_pointers(),
 				'term' => $sentence->term
 			);
 			return $out;
@@ -147,9 +147,13 @@ class kernel_lib
 			if($strict && !($v->root >= 1)) continue;
 			
 			$type = $v->type;
-			$w1 = $v->subj1->contents[0];
-			$act = @$v->act->contents[0];
-			$w2 = $v->subj2->contents[0];
+			$w1 = $v->subj1->get(0);
+			if(count($v->act->get_contents())) {
+				$act = @$v->act->get(0);
+			} else {
+				$act = null;
+			}
+			$w2 = $v->subj2->get(0);
 
 			$truth = $v->truth->getType(0);
 			$cond = $v->cond;
@@ -190,11 +194,11 @@ class kernel_lib
 			if(!($i%10) && $i>0) echo '</tr>';
 			if(!($i%10)) echo '<tr>';
 			echo '<td>';
-			if(is_string($v->term))
-				echo "<div style=\"display:inline; color:#000080;\">@<b>$i</b> => [ ".$v->term.((count($v->pointer))?' >> '.$v->flag.implode(",",$v->pointer):'')." ]</div> ";
+			if(is_string($v->get_term()))
+				echo "<div style=\"display:inline; color:#000080;\">@<b>$i</b> => [ ".$v->get_term().((count($v->get_pointers()))?' >> '.$v->flag.implode(",",$v->get_pointers()):'')." ]</div> ";
 		else	if($v->logical == -1)
 			{
-				echo "<div style=\"display:inline; color:#008000;\">@<b>$i</b> => { ".implode(" ",$v->term)." }</div> ";
+				echo "<div style=\"display:inline; color:#008000;\">@<b>$i</b> => { ".implode(" ",$v->get_term())." }</div> ";
 			}
 		else		echo "<div style=\"display:inline; color:#800000;\">@<b>$i</b> => [ L".$v->logical." ]</div> ";
 			echo '</td>';

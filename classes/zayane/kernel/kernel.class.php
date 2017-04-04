@@ -45,17 +45,27 @@ class kernel extends kernel_basic
 	public $log = [];
 
 	function log($str) {
-		$this->log[] = '['.date('Y-m-d h:i:s').'] '.trim($str);
+		$add = '['.date('Y-m-d h:i:s').substr(microtime(),1,7).'] '.trim($str);
+		$this->log[] = $add;
+		if(cli()) {
+		#	echo "$add\n";
+		}
 	}
 	function update_global() {
 		kernel::set_global($this);
 	}
-	function __construct()
+
+	// please use kernel::initialize() factory;
+	function __construct($uuid = null)
 	{
 		parent::__construct();
 
 		// someday we will need to remodel everything as closures.  kernelception.
-		$this->uuid = uuid();
+		if(empty($uuid)) {
+			$this->uuid = uuid();
+		} else {
+			$this->uuid = $uuid;
+		}
 		$this->update_global();
 
 		//Someday this will need to be able to support additional info being fitted in.
@@ -63,11 +73,15 @@ class kernel extends kernel_basic
 		$this->add(new kernel_node('_USR'));
 		$this->add(new kernel_node('_SYS'));
 		$this->add(new kernel_node('_SELF'));
+
+		for($i = 0; $i <= 3; $i++) {
+			$this->get($i)->set_sender(1);
+			$this->get($i)->set_receiver(2);
+		}
 		
 		for($i = 1; $i <= 2; $i++) $this->contents[$i]->user = 1;
 		$this->scope = new scope();
 		$this->heap = array();
-		$this->sentences = 0;
 		$this->status = new estat();
 		/*
 		parameters to consider:
@@ -87,6 +101,23 @@ class kernel extends kernel_basic
 			'seq' => new estat(0,0,0,1),
 			'nseq' => new estat(0,0,0,-1)
 		];
+	}
+	function __destruct() {
+		#kernel::remove_global($this);
+	}
+
+	static function ind2dir(int $addr, int $sender, int $receiver) {
+		if($addr == 0) return $receiver;
+		if($addr == 3) return $sender;
+		return $addr;
+	}
+	
+	static function mirrorize($addr,$sender) {
+		if(!in_array($addr,[0,1,2,3])) return $addr;
+		if($addr == 3) return 0;
+		if($addr == 0) return 3;
+		if($addr == $sender) return 0;
+		if($addr != $sender) return 3;
 	}
 	function update_status()
 	{
@@ -115,15 +146,15 @@ class kernel extends kernel_basic
 	function addr2returntype($addr)
 	{
 		$x = $this->contents[$addr];
-		if($x->logical >= 0) return $this->scope->contents[$x->logical];
+		if($x->logical >= 0) return $this->scope->get($x->logical);
 	else	return new kaddr($addr);
 	}
-	function get_logical_parent($addr)
+	function get_logical_parent(int $addr)
 	{
 		while(1)
 		{
 			$parent = $this->get($addr);
-			if(in_array($parent->term[0],['_','^','*']))
+			if(in_array($parent->get_term()[0],['_','^','*']))
 				return $parent;
 			else	$addr = $this->get_parent($addr,1);
 		}
@@ -140,12 +171,12 @@ class kernel extends kernel_basic
 		foreach($this->contents as $i=>$v)
 			if($i > $exceptions[0]) break;
 		else	if(!$permit_ambig && $v->ambiguous) continue;
-		else	if(!is_string($v->term) || in_array($i,$exceptions)) continue;
+		else	if(!is_string($v->get_term()) || in_array($i,$exceptions)) continue;
 		else	if(!$v->search($str,$strictness)) continue;
 		else	{
 				$parent = $this->get_parent($i);
 				$lbase = $this->get_logical_parent($i);
-				if(!isset($parent) || in_array($lbase->term[0],['^','_']) && $parent->term[0] == '.') continue;
+				if(!isset($parent) || in_array($lbase->get_term()[0],['^','_']) && $parent->get_term()[0] == '.') continue;
 				$out[$i] = $v;
 			}
 		return $out;
@@ -153,12 +184,10 @@ class kernel extends kernel_basic
 	function rollback()
 	{
 		if($this->last_state == null) return;
-		$this->contents = $this->last_state->contents;
-		$this->heap = $this->last_state->heap;
-		$this->status = $this->last_state->status;
-		$this->scope = $this->last_state->scope;
-		$this->grammar = $this->last_state->grammar;
-		$this->sentences = $this->last_state->sentences;
+		$vars = get_object_vars($this->last_state);
+		foreach($vars as $i=>$v) {
+			$this->$i = $v;
+		}
 		$this->last_state = null;
 	}
 	//Assigns sender and receiver values to the latest address addition, or the address given.
@@ -188,9 +217,9 @@ class kernel extends kernel_basic
 	else	if(count($parser->address)) $ptrs = $parser->address;
 	else	$ptrs = [$map];
 
-		return $ptrs;
+		return array_unique($ptrs);
 	}
-	function process_terminal_pointers(&$terminal,$map,$parent,$index,$sender,$receiver)
+	function process_terminal_pointers(string &$terminal,$map,$parent,int $index,int $sender,int $receiver)
 	{
 		//Remember, terminals have only one pointer.  You can do an array search.
 		//One pointer -- really? TODO review
@@ -200,67 +229,40 @@ class kernel extends kernel_basic
 
 		$flag = $parser->ref_type; //please remove the heapreftype flag
 		$ptrs = $this->identify_registry_pointers($terminal,$map);
+		$optrs = $ptrs;
 
 		if($flag == null) return;
+		$prs = $ptrs;
+		foreach($ptrs as $i=>&$v) {
+			if($flag == '#') $v = kernel::ind2dir((int)$v,$sender,$receiver);
+		}
 
 		//kernel_node::term -> established at instantiation. TODO you were clearly being lazy here.
 		$term = $parser->literal;
+
 		//kernel_node::pointer -> what does this terminal reference?
-		$this->get($map)->pointer = $ptrs;
+		foreach($ptrs as $i=>$v) {
+			$this->get($map)->add_pointer($v);
+		}
+		$this->get($map)->set_pointers($ptrs);
 		//kernel_node::backtrace -> we should assign this preemptively. TODO the kernel node may not even exist.
-		foreach($ptrs as $i=>$v)
+		foreach($ptrs as $i=>$v) {
 			$this->get($v)->add_backtrace($map);
+		}
+		
 		//kernel_node::flag
 		$this->get($map)->$flag = $flag;
 		//kernel_node::name
 		//kernel_node::pronoun
 		$reftypes = ['#' => 'name', '%' => 'pronoun', '&' => 'ambig']; //TODO standardization, standardization, standardization
 
-		$neighbors = $this->get_neighbors($map);
-
-		$terminal = $flag.implode(",",$ptrs)."|".$term;
+		$terminal = $flag.implode(",",$optrs)."|".$term;
 
 		$ptrs[] = $map;
 		$ptrs = array_unique($ptrs);
-		foreach($ptrs as $i=>$v)
-		{
-			if($v == 0 && $flag == '#') $v = $receiver;
-		else	if($v == 3 && $flag == '#') $v = $sender;
-			if($term == '_USR'||$term == '_SYS') continue;
-			$this->get($v)->update_reference_terminology
-			(
-				$reftypes[$flag],
-				$term,
-				$neighbors['bef'],//bef -- drag the list along
-				$neighbors['aft']//aft -- drag the list along
-			);
-		}
 
 	}
-	function get_neighbors($index) //n=1, maybe in the future this can be extended for more power
-	{
-		$bef = '';
-		$aft = '';
-		$sentence = $this->get($index)->sentence;
-		for($i = $index+1; $i < count($this->contents) && $this->get($i)->sentence == $sentence; $i++)
-		{
-			if($this->get($i)->sentence == $sentence && $this->get($i)->block == -1)
-			{
-				$aft = $this->get($i)->term;
-				break;
-			}
-		}
-		for($i = $index-1; $i >= 0 && $this->get($i)->sentence == $sentence; $i--)
-		{
-			if($this->get($i)->sentence == $sentence && $this->get($i)->block == -1)
-			{
-				$bef = $this->get($i)->term;
-				break;
-			}
-		}
-		return ['bef'=>$bef,'aft'=>$aft];
-	}
-	function process_pointers(&$tree,$map,$parent = null,$sender,$receiver)
+	function process_pointers(&$tree, $map,$parent = null,$sender,$receiver)
 	{
 		if(is_array($tree))
 			foreach($tree as $i=>&$v)
@@ -275,7 +277,7 @@ class kernel extends kernel_basic
 	}
 
 	//Keeping it simple.  Generates addresses and returns a map for future work.
-	function kernelize($tree,int $sender, $row = 0)
+	function kernelize($tree,int $sender, $row = 0, int $receiver)
 	{
 		$out = [];
 		$index;
@@ -307,7 +309,7 @@ class kernel extends kernel_basic
 					if(!$i && is_string($statement)) {
 						$out[] = $statement;
 					} else {
-						$out_add = $this->kernelize($statement,$sender,$row+1);
+						$out_add = $this->kernelize($statement,$sender,$row+1,$receiver);
 						if(!empty($out_add)) {
 							$out[] = $out_add;
 						}
@@ -344,14 +346,13 @@ class kernel extends kernel_basic
 		//kernel_node var handling
 		if(isset($index))
 		{
-			//kernel_node::sentence
-			$this->get($index)->sentence = $this->sentences;
 			//kernel_node::root
 			if(lang::is_base_flag($tree[0]) == 1 && is_array($tree)) $this->get($index)->root = 1;
 			//kernel_node::block
 			if(is_array($tree)) $this->get($index)->block = 1;
 			//kernel_node::sender
-			$this->get($index)->sender = $sender;
+			$this->get($index)->set_sender($sender);
+			$this->get($index)->set_receiver($receiver);
 			//kernel_node::flag
 			if($this->get($index)->block == -1)
 			{
@@ -370,9 +371,6 @@ class kernel extends kernel_basic
 				$this->get($index)->estat = $estat;
 			}
 		}
-
-		//Update sentence count
-		if(is_array($tree) && lang::is_base_flag($tree[0])) $this->sentences++;
 
 		return $out;
 	}
@@ -402,9 +400,6 @@ class kernel extends kernel_basic
 	//You may want to refer back to the old mirror for more potential features.
 	function mirror(int $index,int $sender,int $receiver)
 	{
-		$new_sender = $receiver;
-		$new_receiver = $sender;
-
 		$term = $this->getTerm($index);
 		$parent = $this->get_parent($index);
 
@@ -428,17 +423,19 @@ class kernel extends kernel_basic
 			$flag = $node->flag;
 			$type;
 			if($flag==null||$flag=="") return $term;
-		else	if($flag=="#") $type = "name";
-		else	if($flag=="%") $type = "pronoun";
 
-			$pointers = $node->pointer;
+			$pointers = $node->get_pointers();
+			
+			foreach($pointers as &$v) {
+				if(in_array($v,[1,2]))
+				$v = self::mirrorize($v,$sender);
+			}
+			
 			$terminal_head = $flag.implode(',',$pointers)."|";
-			$neighbors = $this->get_neighbors($index);
 
-			if($flag=="#" && in_array(0,$pointers) && !in_array(3,$pointers)) $index = $new_receiver;
-			if($flag=="#" && in_array(3,$pointers) && !in_array(0,$pointers)) $index = $new_sender;
+			$name = kernel_node::getName($flag,$index,$sender,$receiver);
 
-			$out = $terminal_head.$this->get($index)->getName($type,$neighbors['bef'],$neighbors['aft']);
+			$out = $terminal_head.$name;
 		}
 		return $out;
 	}
@@ -450,7 +447,7 @@ class kernel extends kernel_basic
 		{
 			if($i < 4) continue;
 			$base = $this->get_base($i);
-			if($base->term[0] != ':|' || $v->sender == 2 || !isset($v->estat) ) continue;
+			if($base->get_term()[0] != ':|' || $v->get_sender() == 2 || !isset($v->estat) ) continue;
 			$out[] = $i;
 			//if($v->block == 1)
 		}
@@ -497,9 +494,6 @@ class kernel extends kernel_basic
 
 	function respond($returns,$sender,$receiver,$inquiry = null)
 	{
-		$this->sender = $receiver;
-		$this->receiver = $sender;
-
 		$out = [];
 
 		// Balance is key.
@@ -524,7 +518,8 @@ class kernel extends kernel_basic
 			case '<':
 			case '!':
 			case ':|':
-				$index = $returns->kaddr[0]->contents[0];
+				$this->log("Non-logical response designated.");
+				$index = $returns->kaddr[0]->get(0);
 				$out;
 				//Fill this with all the lovely operation possibilities
 				if(!isset($returns->meta['force-mirror']) && count($out = $this->smart_mirror($index,$sender,$receiver))) {
@@ -538,13 +533,17 @@ class kernel extends kernel_basic
 				break;
 			case 'i':
 			case '?':
+				$this->log("Logical response designated.");
 				//do nothing for now, argue later
 				$base_key = (isset($returns->meta['force-mirror']))?
 					$returns->type
 					: lang::invert_logical_base_key($returns->type);
 				$out[] = $base_key;
 				$ir = [];
-				if($sender != 2) $ir = $this->instr_logic_reply($returns,$base_key);
+				if($sender == 2) {
+					$ir = $this->instr_logic_reply($returns,$base_key);
+				}
+
 				if(count($ir) && lang::is_logical_stem_flag($ir[0]))
 				{
 					$fitted = kernel::logical_base_fit($ir,$base_key);
@@ -553,8 +552,12 @@ class kernel extends kernel_basic
 				}	else	$out = $ir;
 				//respond generically for now, elaborate later
 				break;
-				break;
 		}
+		
+		if(empty($out)) {
+			throw new Exception("kernel::respond() - Empty result.");
+		}
+
 		return $out;
 	}
 	//Rudimentarily joins instr->logic based on commonalities
@@ -578,8 +581,8 @@ class kernel extends kernel_basic
 	{
 		foreach($this->contents as $i=>$v)
 			if($v->block != 1) continue;
-		else	if($v->term[0] == $t) {
-				$res = $this->get($v->term[1])->term;
+		else	if($v->get_term()[0] == $t) {
+				$res = $this->get($v->get_term()[1])->get_term();
 				if(!empty($res)) return $res;
 			}
 
@@ -601,7 +604,7 @@ class kernel extends kernel_basic
 		foreach($this->contents as $i=>$v)
 		{
 			if($i <= $index) continue;
-			if($v->block == 1 && in_array($index,$v->term))
+			if($v->block == 1 && in_array($index,$v->get_term()))
 				return ($return_index)?$i:$v;
 		}
 		return null;
@@ -632,13 +635,13 @@ class kernel extends kernel_basic
 			$challenger_weight = 0;
 
 			// skip if structure was not "human" generated, nonblock, and isn't logical
-			if($v->sender != 1 || $v->block != 1 || !lang::is_logical_stem_flag($v->term[0])) continue;
-			if($v->term[0] == $logic->type) $challenger_weight++;
+			if($v->get_sender() != 1 || $v->block != 1 || !lang::is_logical_stem_flag($v->get_term()[0])) continue;
+			if($v->get_term()[0] == $logic->type) $challenger_weight++;
 			//TODO: estat analysis/distance
 			$tree = $this->build($i);
 			$layout = interpreter::getLayout($tree);
 			$base = $this->get_base($i);
-			if($base != null && $base->term[0] == $type) $challenger_weight++;
+			if($base != null && $base->get_term()[0] == $type) $challenger_weight++;
 			$challenger = null;
 			if($challenger = kernel::precise_fit_logical(object_clone($logic),$i)) $challenger_weight += 2;
 		else	continue;
@@ -662,7 +665,7 @@ class kernel extends kernel_basic
 			return $out;
 		}
 		$laddr = $this->get($addr)->logical;
-		$logic = $this->scope->contents[$laddr];
+		$logic = $this->scope->get($laddr);
 		$out = new instr('i');
 		$out->init_logical($logic);
 		return $out;
@@ -684,7 +687,7 @@ class kernel extends kernel_basic
 			$t2 = kernel::fit_ifthen('{',$t);
 			if($t2 === 0) $cond = ['{',$t];
 			else $cond = $t2;
-			if($t[0] == ':|') $cond = null;
+			if(!count($t) || $t[0] == ':|') $cond = null;
 		}
 		if(isset($v->impl))
 		{
@@ -694,11 +697,29 @@ class kernel extends kernel_basic
 			else $cond = $t2;
 		}
 
-		$result = remnull(array_merge($result,[$subj1,$act,$subj2,$cond,$impl,[$truth,interpreter::checkCommand($truth,$null,null)]]));
+		$result = remnull (
+				array_merge (
+					$result,
+					[
+						$subj1,
+						$act,
+						$subj2,
+						$cond,
+						$impl,
+						[
+							$truth,
+							interpreter::checkCommand($truth,$null,null)
+						]
+					]
+				)
+		);
+
 		return $result;
 	}
 	function instr_logic_reply(instr $returns /*instr*/,$type = null,$fixed_truth = null)
 	{
+		// note: type refers to the rootkey to be used in response.
+
 		$adds = [];
 		$results = [];
 		if(isset($type)) $returns->type = $type;
@@ -709,7 +730,7 @@ class kernel extends kernel_basic
 		if($type == '?')
 		{
 			$out;
-			$subj1_index = $returns->logic[0]->subj1->contents[0];
+			$subj1_index = $returns->logic[0]->subj1->get(0);
 			$base_addr = $this->get_base($subj1_index,1);
 			if(!isset($returns->meta['force-mirror']) && count($out = $this->smart_mirror($base_addr,1,2))) {
 				$adds = $out;
@@ -733,8 +754,9 @@ class kernel extends kernel_basic
 				$returns->logic[$i] = object_clone($v);
 				$completion = $this->scope->complete($returns->logic[$i]);
 				// Case 1: No ambiguity.
-				if(!$completion)
+				if(!$completion) {
 					$evaluation = $this->scope->evaluate($v,$this);
+				}
 				// Case 2: Ambiguity, completed.
 			else	if($completion == 1)
 				{
@@ -761,7 +783,14 @@ class kernel extends kernel_basic
 				}
 			}
 			$this->merge_logic_returns($returns);
-
+			foreach($returns->kaddr as $i=>$v) {
+				foreach($v->contents as $j => $w) {
+					$node = $this->get($w);
+					if(lang::is_ambiguous_flag($node->flag)) {
+						print_r($node);
+					}
+				}
+			}
 			foreach($returns->logic as $i=>$v)
 			{
 				if(isset($fixed_truth) && $fixed_truth != 1) $v->truth->setType($fixed_truth,0);
@@ -776,10 +805,20 @@ class kernel extends kernel_basic
 			else if(count($results)==1) $adds = $results[0];
 			else ;
 		}
+
+		if(empty($adds)) {
+			throw new Exception("kernel::instr_logic_reply() - Empty result.");
+		}
+
 		return $adds;
 	}
 	function sleep($its = 0)
 	{
+		// temporary - reset conflicts in scope before total sleep cycle to prevent redundancy
+		if(!$its) {
+			$this->scope->conflicts = [];
+		}
+
 		$iterations = 0;
 		while($this->scope->sleep($this))
 			if($its && $iterations >= $its) break;
@@ -799,32 +838,36 @@ class kernel extends kernel_basic
 		$results = [];
 		$eval_success = 0;
 		//Prepare and build tree
-		if($this->prepare($msg,$tree))
 		try
 		{
-			$this->log('Successfully processed FZPL query.');#: '.$msg);
+			$this->log('Processing FZPL query: '.$msg);
+			$this->prepare($msg,$tree);
+			$this->log('Successfully processed FZPL query.');
 			//Backup the kernel before attempting operations
 			$this->archive();
 			//Generate parsing grammar rules for NLP
-			$this->grammar->process($tree);
+			#$this->grammar->process($tree);
 			//Evaluate parse tree
 			$result = $this->evaluate($tree);
+			$this->log("FZPL query evaluation complete.");
 			$results[] = $result;
 			$eval_success = 1;
 		}
 		catch (Exception $e)
 		{
-			echo 'Tree:<br/>';
-			printDat($tree);
-			echo 'Log:<br/>';
-			printDat(array_reverse($this->log,true));
-			echo nl2br(jTraceEx($e));
+			if(cli()) {
+				error_log("Tree:");
+				error_log(print_r($tree,1));
+				error_log("Log:");
+				error_log(print_r(array_reverse($this->log,true),1));
+			}
+			error_log(jTraceEx($e));
 			$this->rollback();
-			$prev_fail = 1;
 		}
 	//	if($eval_success) $this->scope->sleep($this);
 		//writef('kernel.dat',serialize($this));
 		//writef('log.dat',serialize($hist));
+		$this->log("End query processing sequence.");
 		return $results;
 	}
 	function prepare($msg,&$tree)
@@ -832,19 +875,13 @@ class kernel extends kernel_basic
 		//Rudimentary preparation
 		//Convert into parse tree and run preprocessor routines
 		$parse_success = 0;
-		try
-		{
-			$tree = parser::parse($msg,0);
-			//Verify syntax
-			$tree = interpreter::check($tree,0);
-			$parse_success = 1;
-		}
-		catch (Exception $e)
-		{
-			echo $e->getMessage();
-			$prev_fail = 1;
-		}
-		return $parse_success;
+		
+		$tree = parser::parse($msg,0);
+		//Verify syntax
+		$tree = interpreter::check($tree,0);
+		$parse_success = 1;
+		
+		return true;
 	}
 	function isolate_subj1($tree,$args,$map,$sender,$receiver)
 	{
@@ -927,7 +964,11 @@ class kernel extends kernel_basic
 		$layout = interpreter::getLayout($tree);
 		$out = new kaddr(null);
 		if(!in_array("IF",$layout)) return new kaddr(null);
-		$k = $this->evaluate_block($tree[array_search("IF",$layout)],$map[array_search("IF",$layout)],$sender,$receiver);
+
+		$tree_segment = $tree[array_search("IF",$layout)];
+		$map_segment = $map[array_search("IF",$layout)];
+		$k = $this->evaluate_block($tree_segment,$map_segment,$sender,$receiver);
+		$k->validate_logical();
 		return $k;
 	}
 	function isolate_then($tree,$args,$map,$sender,$receiver)
@@ -946,16 +987,19 @@ class kernel extends kernel_basic
 			$map = $this->get_parent($map,1);
 			$parent = $this->get($map);
 		}
-		while(in_array($parent->term[0],['+','/']));
-		if(is_object($parent) && in_array($parent->term[0],['i','?'])) return 1;
+		while(in_array($parent->get_term()[0],['+','/']));
+		if(is_object($parent) && in_array($parent->get_term()[0],['i','?'])) return 1;
 		return 0;
 	}
-	function store_logic($logic)
+	function store_logic(logic $logic)
 	{
-		$this->add(new kernel_node(null));
+		$this->add(new kernel_node("LOG"));
 		$this->get($this->size()-1)->logical = count($this->scope->contents);
 		$this->scope->contents[] = $logic;
-		return new kaddr($this->size()-1);
+		$addr = $this->size()-1;
+		$out = new kaddr($addr);
+		$out->validate_logical();
+		return $out;
 	}
 	function merge_into($x_ptrs,$y_ptrs)
 	{
@@ -969,18 +1013,20 @@ class kernel extends kernel_basic
 	function extract_concept_roots_kaddr($kaddr)
 	{
 		$out = [];
-		foreach($kaddr->contents as $i=>$v)
+		foreach($kaddr->get_contents() as $i=>$v) {
 			$out = array_merge($out,$this->extract_concept_roots($v));
+			
+		}
 		return $out;
 	}
-	function extract_concept_roots($index)
+	function extract_concept_roots(int $index)
 	{
 		$out = [];
 		$node = $this->get($index);
 		if(strlen($node->flag) == 0) return [$index];
-	else	if($node->flag == "%") return $node->pointer;
+	else	if($node->flag == "%") return $node->get_pointers();
 	else	if($node->flag == "#")
-			foreach($node->pointer as $i=>$v)
+			foreach($node->get_pointers() as $i=>$v)
 				if($v != $index) $out = array_merge($this->extract_concept_roots($v));
 				else $out[] = $index;
 	else	if($node->flag == "&") //amgibuous

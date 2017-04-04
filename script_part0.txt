@@ -1,0 +1,91 @@
+////////////////////////////////////////////////////////////////////////////////
+// initialization
+////////////////////////////////////////////////////////////////////////////////
+
+(> `init .#0|fadela .#3|michael .%0|you .%3|i)
+
+////////////////////////////////////////////////////////////////////////////////
+// bootstrapping
+////////////////////////////////////////////////////////////////////////////////
+
+(> `hello .#0|fadela (c force-mirror))
+(> `hi .#0|fadela .how are you)
+
+(:| `i am fine .thank you .and yourself (c force-mirror))
+(:| `likewise .thank you)
+
+(:| `can i ask you a few questions (c force-mirror))
+(:| `go for it)
+
+////////////////////////////////////////////////////////////////////////////////
+// "ok" bootstrapping.
+////////////////////////////////////////////////////////////////////////////////
+
+(i
+ (* 
+    ({
+      (* `$#cars|cars .$#hit|hit "$#bars|bars)
+    )
+    `@#cars|cars .$#bit|bit "@#bars|bars
+ )
+ (c force-mirror)
+)
+(:| `ok)
+
+////////////////////////////////////////////////////////////////////////////////
+// interjection
+////////////////////////////////////////////////////////////////////////////////
+
+(:|
+  `stop being a jerk
+  (e D- %0|)
+)
+
+(:|
+  `ok, thanks!
+  (e D+ %0|)
+)
+
+(?
+  (/ ,please clarify:
+    (_ `x "y)
+    ,or
+    (_ `x -no "y)
+  )
+)
+
+(?
+      (* `%3|yo .@#hit|hit "@#bars|bars)
+)
+
+////////////////////////////////////////////////////////////////////////////////
+// misc stuff
+////////////////////////////////////////////////////////////////////////////////
+
+(< `jerk ,?  .i'm done with this conversation ,. (c force-mirror))
+(:| `i'm sorry ,!  .please don't leave ,!)
+
+(< `i'll get back to you at another time ,, .i have business to tend to. (c force-mirror))
+(< `alright ,... .goodbye .#0|fadela ,, .i will see you soon ,!)
+
+////////////////////////////////////////////////////////////////////////////////
+// execution - showtime!
+////////////////////////////////////////////////////////////////////////////////
+
+(> `hello .#0|fadela)
+(:| `i am fine .thank you .and yourself)
+(:| `can i ask you a few questions)
+
+(i (, consider the following:)
+ (+
+   (*
+     ({ ,if (* `%3|i .$#0|have "$#1|dough ,,) )
+     `%3|i ,can .$#2|bake ,a "$#3|cake ,.
+   )
+   , and
+   (*
+     ({ ,if (* `%3|i .@#0|have -no "@#1|dough ,,) )
+     `%3|i ,can -not .@#2|bake ,a "@#3|cake ,.
+   )
+ )
+)

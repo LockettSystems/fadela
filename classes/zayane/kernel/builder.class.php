@@ -48,7 +48,6 @@ trait builder
 		$concept_roots = $this->extract_concept_roots($addr);
 		
 		$syncans = $this->get_synonym_candidates($concept_roots);
-
 		$champion = ['addr' => $addr, 'set' => $concept_roots];
 		$champion_weight = 0;
 		foreach($syncans as $i => $can) {
@@ -79,19 +78,19 @@ trait builder
 		if(empty($flag)) $flag = $cnode->flag;
 
 		$out = '';
-		if(count($cnode->pointer)) {
+		if(count($cnode->get_pointers())) {
 			if(empty($flag)) $flag = '#';
-			$out .= $flag . implode(",",$cnode->pointer) . "|";
+			$out .= $flag . implode(",",$cnode->get_pointers()) . "|";
 		} else if(!empty($flag)) {
 			$out .= $flag . $init_addr . "|";
 		}
 
 		if(!empty($flag)) {
-			$out .= $cnode->getName($flag,'','');
+			$out .= kernel_node::getName($flag,$caddr,1,2);
 		} else if(!empty($cnode->flag)) {
-			$out .= $cnode->getName($cnode->flag,'','');
+		        $out .= kernel_node::getName($cnode->flag,$caddr);
 		} else {
-			$out .= $cnode->term;
+			$out .= $cnode->get_term();
 		}
 
 		// Post-overhaul todo list:
@@ -132,7 +131,7 @@ trait builder
 		$pointers = implode(",",$pointers).(count($pointers)?"|":"");
 		//TODO Does this account for the more esoteric oddities of literal pointers? (e.g., colons)
 		if(isset($flag) && strlen($flag)>0)
-			$out = $flag.$pointers.$this->get($addr)->getName($flag,'','');
+			$out = $flag.$pointers.kernel_node::getName($flag,$addr);
 		else	$out = $root;
 		return $out;
 	}
@@ -147,9 +146,9 @@ trait builder
 	{
 		//Please replace colons and such indicators with proper object types
 		$root = $this->getTerm($addr);
-		if($this->get($addr)->logical != -1)
+		if($this->get($addr)->logical != -1) {
 			return $this->build_logical($addr);
-	else	if(is_string($root) || count($root)==0) {
+		} elseif(is_string($root) || count($root)==0) {
 			$res = $this->buildStrLit($addr,$root);
 			return $res;
 		}
@@ -162,7 +161,7 @@ trait builder
 	function build_from_kaddr($kaddr,$fitted = 0)
 	{	//TODO QA
 		$out = [];
-		$addrs = $kaddr->contents;
+		$addrs = $kaddr->get_contents();
 		foreach($addrs as $i=>$v)
 		{
 			$result;
@@ -185,7 +184,7 @@ trait builder
 			else	$out[] = $result;
 		}
 
-		if(count($kaddr->contents)>1)
+		if(count($kaddr->get_contents())>1)
 			$out = $this->and_fit($out);
 		return $out;
 	}

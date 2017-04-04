@@ -12,9 +12,7 @@
 
 // helper classes (LGPL)
 
-require 'jtable.class.php';
 require 'math.class.php';
-require 'weightstack.class.php';
 
 // helper subclasses (LGPL)
 

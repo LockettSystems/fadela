@@ -72,8 +72,8 @@ trait inquiry
 			// If addresses have been resolved, reflect this in kernel nodes and remove from master set
 			
 			$node = $this->get($v);
-			$term = $node->term;
-			$inference = $this->oats->infer($term,null,$prefix);
+			$term = $node->get_term();
+						$inference = $this->oats->infer($term,null,$prefix);
 			if($inference[0] == -1) $inference = [];
 			$x;
 			if(!count($inference)) $x = $this->scope->disambiguate($v,$this);
@@ -81,13 +81,13 @@ trait inquiry
 			if(count($inference) || $x >= 0)
 			{
 				if(count($inference)) $x = $inference;
-				$this->get($v)->pointer = array_merge($this->get($v)->pointer,$x);
+				$this->get($v)->set_pointers(array_merge($this->get($v)->get_pointers(),$x));
 				$this->get($v)->ambiguous = 0;
 				$this->get($v)->flag = (isset($prefix))?$prefix:null;
 				foreach($x as $j=>$w)
 				{
-					$this->get($w)->backtrace[] = $v;
-					$this->get($w)->backtrace = array_values($this->get($w)->backtrace);
+					$this->get((int)$w)->add_backtrace($v);
+					$this->get((int)$w)->set_backtrace(array_values($this->get((int)$w)->get_backtrace()));
 				}
 				unset($ambiguities[$i]);
 			}
@@ -185,23 +185,35 @@ trait inquiry
 	// if scope has logical conflict, generates and returns inquiry message
 	function generate_conflict_inquiry()
 	{
-		if(!count($this->scope->conflicts)) return [];
-		// Identify first conflict in the scope
-		$x = $this->scope->conflicts[0];
-		// Build parse tree of first conflicting logic
-		$y1 = $this->build_from_logic($x[0],$x[0]->truth->getType(0));
-		// Build parse tree of second conflicting logic
-		$y2 = $this->build_from_logic($x[1],$x[1]->truth->getType(0));
-		// Fit both parse trees into an OR-block
-		$z = $this->or_fit([$y1,$y2]);
-		// Fit the OR-block into a logical base
-		$out = $this->logical_base_fit($z,'?');
-		// Clear conflict queue until redundancy safeguards are in place
-		$this->scope->conflicts = [];
-		// If no good structural fit, return in simple FZPL
-		if($out === 0) return ['?',$z];
-		// Otherwise, return the final fitted product
-		else return $out;
+		$out = [];
+		
+		if(count($this->scope->conflicts)) {
+		
+			// Identify first conflict in the scope
+			$x = $this->scope->conflicts[0];
+			
+			// Build parse tree of first conflicting logic
+			$y1 = $this->build_from_logic($x[0],$x[0]->truth->getType(0));
+			
+			// Build parse tree of second conflicting logic
+			$y2 = $this->build_from_logic($x[1],$x[1]->truth->getType(0));
+			
+			// Fit both parse trees into an OR-block
+			$z = $this->or_fit([$y1,$y2]);
+			
+			// Fit the OR-block into a logical base
+			$out = $this->logical_base_fit($z,'?');
+			
+			// Clear conflict queue until redundancy safeguards are in place
+			$this->scope->conflicts = [];
+			
+			// If no good structural fit, return in simple FZPL
+			if($out === 0) $out = ['?',$z];
+			
+			// Otherwise, return the final fitted product
+		}
+		
+		return $out;
 	}
 
 	// given a logic object, returns set of all ambiguous addresses

@@ -12,97 +12,159 @@
 
 class kernel_node
 {
-	public	$term = "",//kernelize2
-		$pointer = [],//process_terminal_pointers
-		$backtrace = [],//process_terminal_pointers
-		$sentence = -1,//kernelize2
-		$sentence_index = -1,
+	private
+		$sender = -1,//kernelize2
+		$receiver = -1,//kernelize2
+		$term = ""//kernelize2
+		;
+
+	public	
 		$root = -1,//kernelize2
 		$block = -1,//kernelize2
-		$sender = -1,//kernelize2
 		$flag = null,//process_terminal_pointers
-		$name = [],//process_terminal_pointers
-		$pronoun = [],//process_terminal_pointers
 		$logical = -1,
 		$ambiguous = 0,
 		$user = 0,
-		$rank = 0,
-		$endpoint = 0,
 		$estat = null,
 		$has_command = 0;
+	private $NULL;
+
+	private	$pointer = [], //process_terminal_pointers
+		$backtrace = []; //process_terminal_pointers
 		
 	function __construct($term)
 	{
-		$this->term = $term;
 
-		$this->name =
-		[
-			'bef' => new jtable(),
-			'aft' => new jtable(),
-			'default' => new weightStack()
-		];
-
-		$this->pronoun =
-		[
-			'bef' => new jtable(),
-			'aft' => new jtable(),
-			'default' => new weightStack()
-		];
-
-		$this->ambig =
-		[
-			'bef' => new jtable(),
-			'aft' => new jtable(),
-			'default' => new weightStack()
-		];
+		$this->set_term($term);
 	}
 
+	function set_term($x) {
+		if(empty($x)) {
+			print_r(kernel::neuter(debug_backtrace()));
+#			throw new Exception("Empty term string received");
+		}
+		$this->term = $x;
+	}
+
+	function get_term() {
+		return $this->term;
+	}
+
+	function set_sender($x) {
+		$this->sender = $x;
+	}
+
+	function get_sender() {
+		return $this->sender;
+	}
+
+	function set_receiver($x) {
+		$this->receiver = $x;
+	}
+
+	function get_receiver() {
+		return $this->receiver;
+	}
+
+	function get_pointers() {
+		 return $this->pointer;
+	}
+	function add_pointer(int $addr) {
+		 $this->pointer[] = $addr;
+		 $this->pointer = array_unique($this->pointer);
+	}
+	function set_pointers(array $addr) {
+		 foreach($addr as $v) $this->add_pointer((int)$v);
+	}
+	function set_backtrace(array $addr) {
+		 foreach($addr as $v) $this->add_backtrace((int)$v);
+	}
+	function get_backtrace() {
+		 return $this->backtrace;
+	}
 	function merge($x)
 	{
 		$this->pointer = array_merge($this->pointer,$x->pointer);
 		$this->backtrace = array_merge($this->backtrace,$x->backtrace);
-		$this->name['bef']->merge($x->name['bef']);
-		$this->name['aft']->merge($x->name['aft']);
-		$this->name['default']->merge($x->name['default']);
 		//TODO: name, pronoun, further inspection
 	}
 
-	function update_reference_terminology($reftype,$term,$bef,$aft)
-	{
-		$jtable = &$this->$reftype;
-		$jtable['default']->add($term);
-		$jtable['bef']->update(0,$bef,$term);
-		$jtable['aft']->update(0,$aft,$term);
+	static function getNamesBallot($kernel, $type, int $addr, $show_all = false, int $sender, int $receiver) {
+		$oaddr = $addr;
+		if($type == '#') {
+			$addr = kernel::ind2dir($addr, $sender, $receiver);
+		}
+
+		$names = [];
+		$set = $kernel->get($addr)->get_backtrace();
+		
+		foreach($set as $i => $v) {
+			$node = $kernel->get($v);
+			$name = $node->term;
+			if($type != $kernel->get($v)->flag && !$show_all) continue;
+			if(isset($names[$name])) $names[$name]++;
+			else $names[$name] = 1;
+		}
+
+		return $names;
 	}
-
-	function getName($type,$bef,$aft)
+	
+	static function getName($type,int $addr, int $sender, int $receiver)
 	{
-		if($type=='&') $type = 'ambig';
-	else	if($type=='#') $type = 'name';
-	else	if($type=='%') $type = 'pronoun';
-		$cat = $this->$type;
+		kernel::get_global($kernel);
+			
+		$node = $kernel->get($addr);
+		$pointer = $node->get_pointers();
+		
 
-		$befs = $cat['bef']->get(0,$bef);
-		$befmag = $cat['bef']->getLastVar();
+		if(count($pointer) == 1 && $type == '#') {
+			$redir = kernel::mirrorize($pointer[0],$sender,$receiver);
+			if(!in_array($redir,[1,2]) && $redir != $addr) {
+				return self::getName($type,$redir,$sender,$receiver);
+			}
+		}
+		
+		if($type == 'name' || $type == '#') {
+			$type = '#';
+		}
+		if($type == 'pronoun' || $type == '%') {
+			$type = '%';
+		}
+		if($type == 'default' || $type == '') {
+			$type = '';
+		}
 
+		$result = null;
 
-		$afts = $cat['aft']->get(0,$aft);
-		$aftmag = $cat['aft']->getLastVar();
-
-		$default = $cat['default']->select();
-
-
-		if($befs==null && $afts==null) $result = $default;
-		else if($befmag>=$aftmag) $result = $befs;
-		else $result = $afts;
-		if($result == null) $result = $this->term;
+		// temporary placeholder -- we're going to want to write some kernel functions for inference
+		switch($type) {
+			case '&': break;
+			case '#': break;
+			case '%': break;
+		}
+		if(0) {
+			// Contextual Analysis
+		} else {
+			// Ballot
+			$names = self::getNamesBallot($kernel, $type, $addr, false, $sender, $receiver);
+			if(count($names)) {
+				arsort($names);
+				$result = key($names);
+			}
+		}
+		if(empty($result) && !in_array($addr,[1,2])) {
+			// Default term
+			$result = $kernel->get($addr)->term;
+		} elseif (empty($result) && in_array($addr,[1,2])) {
+			throw new Exception("Exception: Primitive literal returned in kernel_node::getName().");
+		}
 
 		return $result;
 	}
 
 	//If kernel compression is to exist, this seriously needs to be phased out.
 	//Better be wary of the heap too.
-	function add_backtrace($index)
+	function add_backtrace(int $index)
 	{
 		$this->backtrace[] = $index;
 		$this->backtrace = array_unique($this->backtrace);
@@ -114,10 +176,12 @@ class kernel_node
 		else	if($strictness == 1 && $this->term === normalize($str)) return 1;
 		else	if($strictness == 2 && $this->term === strtolower($str)) return 1;
 		else	if($strictness == 3 && $this->term === normalize(strtolower($str))) return 1;
+/*
 		else	if($this->name['bef']->search($str,$strictness) >= 0) return 1;
 		else	if($this->name['aft']->search($str,$strictness) >= 0) return 1;
 		else	if($this->name['default']->search($str,$strictness) >= 0) return 1;
 		return 0;
+*/
 	}
 }
 ?>

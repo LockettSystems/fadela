@@ -1,0 +1,23 @@
+000. Shortest informal shorthand smoke test.  If this fails, something is terribly wrong.
+001. Basic mirror test.
+002. Contradiction inquiry / resolution test.
+003. Basic what-completion, no solution.
+004. What-completion, why-completion.
+005. Comprehensive what-completion.
+006. Structure fitting: set equivalence, n important objects in AND block.
+007. Ambiguity inquiry: Partial resolution.
+008. Basic IF-test.
+009. Manual kernel compression and assigning truth to logical blocks
+010. Simple DOESA logic smoke test.
+011. Logical fitting test.  Spanish.
+012. If/Then test.
+013. Concept compression test.
+014. Concept compression fitting test.
+015. Concept compression fitting test, irregular rules.
+016. Extended interjection test.
+017. Extended if/then logic test.
+018. If/Then test.  "Affirmative" version of 012.
+019. Ambiguity inquiry: Partial resolution. (Rehash -- why?)
+020. Ambiguity inquiry and positive/negative interjection demonstration.
+021. Multi-logic ambiguity inquiry.
+022. Ambiguity test, same-literal.

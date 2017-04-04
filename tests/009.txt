@@ -1,0 +1,9 @@
+(> (` hurr hurr) (~ is uncertain))
+(i (* `$#0|x .$#1|acts upon "$#2|z =for certain) )
+(? ,does (* `@#0|x .@#1|act upon "@#2|z) )
+(i (>> ,the notion that (* `@#0|x .@#1|acts upon "@#2|z =for certain) ,is -false) )
+(? ,does (* `@#0|x .@#1|act upon "@#2|z) )
+(:| ,consider `$#x|thing 1)
+(:| ,consider `$#y|thing 2)
+(i (>> `@#x|thing 1 .refers to "@#y|thing 2) )
+

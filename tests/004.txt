@@ -1,0 +1,9 @@
+(i * `$#0|x .$#1|acts upon "$#2|z ({ ,if (_ `@#0|x .is "$#3|an actor ,.) ))
+(? * `@#0|x .@#1|acts upon "@#2|z ,?)
+(i _ `@#0|x .is "@#3|an actor ,.)
+(? _ .is `@#0|x "@#3|an actor ,?)
+(? * `@#0|x .@#1|acts upon "@#2|z ,?)
+(? * ({ `$&4|why does) `@#0|x .@#1|act upon "@#2|z ,?)
+(? _ ({ `$&4|why) .is `@#0|x "@#3|an actor ,?)
+(? _ ({ `$&4|why) .is `@#0|x "$#9|something you've never heard of ,?)
+

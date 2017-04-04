@@ -16,7 +16,7 @@ class n2
 	{
 		if(!is_object($node) || get_class($node) !== 'kernel_node')
 			throw new Exception('Invalid argument type.');
-		switch($node->term[0])
+		switch($node->get_term()[0])
 		{
 			case 'i':
 			        $out = 1;
@@ -34,7 +34,7 @@ class n2
 	{
 		if(!is_object($node) || get_class($node) !== 'kernel_node')
 			throw new Exception('Invalid argument type.');
-		switch($node->term[0])
+		switch($node->get_term()[0])
 		{
 			case '>':
 			        return 1;
@@ -51,7 +51,7 @@ class n2
 	{
 		kernel::get_global($kernel);
 
-		$term = $node->term;
+		$term = $node->get_term();
 
 		if($term[0] == $key) {
 			return 1;
@@ -68,7 +68,7 @@ class n2
 	}
 	static function vectorize_base_logic_truth($node,$addr)
 	{
-		$term = $node->term;
+		$term = $node->get_term();
 		if(!lang::is_logical_base_flag($term[0])) return 0;
 
 		kernel::get_global($kernel);
@@ -119,7 +119,7 @@ class n2
 
 	static function vectorize_auth($node)
 	{
-		if($node->sender == 1) return 1;
+		if($node->get_sender() == 1) return 1;
 	else	return -1;
 	}
 	
@@ -204,7 +204,10 @@ class n2
 
 	static function compare_terms($x,$y)
 	{
+		// number of common terms
 		$intersect = (double) count(array_intersect($x,$y));
+
+		// number of different terms
 		$diff = (double) count(array_diff($x,$y));
 
 		$out = $intersect/count($x) - abs(count($x) - count($y));
@@ -230,7 +233,7 @@ class n2
 		foreach($x as $i=>$v)
 		{
 			if($i != 'ptr' && $i[0]!='*' && isset($y[$i]))
-				$sum += pow($v-$y[$i],2);
+				$sum += pow($v-$y[$i],4);
 		else	if($i[0] == '*')
 			{
 				if(!count($v))
